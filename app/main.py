@@ -38,6 +38,16 @@ class BatchChatRequest(BaseModel):
     questions: list[str]
 
 
+class OpenAIChatMessage(BaseModel):
+    role: str
+    content: str
+
+
+class OpenAIChatCompletionsRequest(BaseModel):
+    model: str | None = None
+    messages: list[OpenAIChatMessage]
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "index_chunks": 0 if _index.is_empty else len(_index.texts)}
@@ -66,6 +76,29 @@ async def chat_batch(req: BatchChatRequest):
         raise HTTPException(status_code=400, detail="questions must not be empty")
     results = await answer_batch(_index, req.questions)
     return {"results": results}
+
+
+@app.post("/v1/chat/completions")
+async def openai_chat_completions(req: OpenAIChatCompletionsRequest):
+    """OpenAI-compatible endpoint for tools that speak the standard chat-completions format."""
+    user_messages = [m.content for m in req.messages if m.role == "user"]
+    if not user_messages:
+        raise HTTPException(status_code=400, detail="no user message found in messages")
+
+    result = await answer_query_async(_index, user_messages[-1])
+
+    return {
+        "id": "chatcmpl-voicebot",
+        "object": "chat.completion",
+        "model": config.CHAT_MODEL,
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": result["answer"]},
+                "finish_reason": "stop",
+            }
+        ],
+    }
 
 
 @app.post("/voice/query")
