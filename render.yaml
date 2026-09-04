@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: headless-voicebot-poc
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: CHAT_MODEL
+        value: gpt-4o-mini
+      - key: EMBED_MODEL
+        value: text-embedding-3-small
+      - key: REALTIME_MODEL
+        value: gpt-4o-realtime-preview-2024-12-17
+      - key: TTS_MODEL
+        value: tts-1
+      - key: TTS_VOICE
+        value: alloy
+      - key: STT_MODEL
+        value: whisper-1
+      - key: TOP_K
+        value: "4"
+      - key: CHUNK_SIZE
+        value: "800"
+      - key: CHUNK_OVERLAP
+        value: "100"
+    healthCheckPath: /health
