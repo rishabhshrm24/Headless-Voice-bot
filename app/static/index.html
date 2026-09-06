@@ -648,19 +648,24 @@ How can I contact customer support?</textarea>
     // Render left session cards
     function renderSessionList() {
       const container = document.getElementById('sessionList');
-      const emptyEl = document.getElementById('sessionListEmpty');
       const countEl = document.getElementById('sessionListCount');
 
       countEl.innerText = state.sessions.length;
 
       if (state.sessions.length === 0) {
-        container.innerHTML = '';
-        container.appendChild(emptyEl);
-        emptyEl.classList.remove('hidden');
+        // Rebuilt inline: the original #sessionListEmpty node gets destroyed by innerHTML below.
+        container.innerHTML = `
+          <div id="sessionListEmpty" class="text-center py-16 text-slate-500 space-y-2">
+            <div class="text-3xl">📭</div>
+            <p class="text-sm font-medium">No sessions recorded yet</p>
+            <p class="text-xs text-slate-600">Send a voice or chat query to see activity appear here in real-time.</p>
+            <button onclick="openTesterModal('chat')" class="mt-3 inline-block px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 text-xs font-medium border border-indigo-500/30">
+              Run a quick test
+            </button>
+          </div>
+        `;
         return;
       }
-
-      emptyEl.classList.add('hidden');
 
       const html = state.sessions.map(s => {
         const isSelected = s.id === state.selectedSessionId;
