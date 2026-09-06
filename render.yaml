@@ -12,7 +12,7 @@ services:
       - key: EMBED_MODEL
         value: text-embedding-3-small
       - key: REALTIME_MODEL
-        value: gpt-4o-realtime-preview-2024-12-17
+        value: gpt-realtime
       - key: TTS_MODEL
         value: tts-1
       - key: TTS_VOICE

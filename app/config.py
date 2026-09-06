@@ -19,7 +19,7 @@ if not OPENAI_API_KEY:
 
 CHAT_MODEL = _get("CHAT_MODEL", "gpt-4o-mini")
 EMBED_MODEL = _get("EMBED_MODEL", "text-embedding-3-small")
-REALTIME_MODEL = _get("REALTIME_MODEL", "gpt-4o-realtime-preview-2024-12-17")
+REALTIME_MODEL = _get("REALTIME_MODEL", "gpt-realtime")
 TTS_MODEL = _get("TTS_MODEL", "tts-1")
 TTS_VOICE = _get("TTS_VOICE", "alloy")
 STT_MODEL = _get("STT_MODEL", "whisper-1")

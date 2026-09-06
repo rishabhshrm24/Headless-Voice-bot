@@ -37,13 +37,19 @@ def session_update_payload() -> dict:
     return {
         "type": "session.update",
         "session": {
-            "modalities": ["audio", "text"],
+            "type": "realtime",
             "instructions": SYSTEM_PROMPT,
-            "voice": config.TTS_VOICE,
-            "input_audio_format": "pcm16",
-            "output_audio_format": "pcm16",
-            "input_audio_transcription": {"model": "whisper-1"},
-            "turn_detection": {"type": "server_vad"},
+            "audio": {
+                "input": {
+                    "format": {"type": "audio/pcm", "rate": 24000},
+                    "transcription": {"model": "whisper-1"},
+                    "turn_detection": {"type": "server_vad"},
+                },
+                "output": {
+                    "format": {"type": "audio/pcm", "rate": 24000},
+                    "voice": config.TTS_VOICE,
+                },
+            },
             "tools": [SEARCH_TOOL],
             "tool_choice": "auto",
         },
@@ -82,7 +88,7 @@ async def _handle_openai_event(
                 f"User spoke: {transcript[:50]}...",
                 {"transcript": transcript},
             )
-    elif event_type == "response.audio_transcript.done":
+    elif event_type == "response.output_audio_transcript.done":
         transcript = event.get("transcript", "").strip()
         if transcript:
             tracker.record_event(
@@ -91,7 +97,7 @@ async def _handle_openai_event(
                 f"Voice reply: {transcript[:50]}...",
                 {"transcript": transcript},
             )
-    elif event_type == "response.text.done":
+    elif event_type == "response.output_text.done":
         text = event.get("text", "").strip()
         if text:
             tracker.record_event(
@@ -151,7 +157,6 @@ async def run_voice_bridge(client_ws: WebSocket, index: RagIndex) -> None:
 
     headers = [
         ("Authorization", f"Bearer {config.OPENAI_API_KEY}"),
-        ("OpenAI-Beta", "realtime=v1"),
     ]
 
     try:

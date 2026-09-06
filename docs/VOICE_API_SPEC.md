@@ -114,10 +114,10 @@ Then, to signal end of user turn (if not using server VAD):
 **Server → Client** (relayed from OpenAI, forwarded verbatim), notable event types:
 | Event type | Meaning |
 |---|---|
-| `response.audio.delta` | Base64 PCM16 audio chunk of the bot's spoken reply (stream continuously, play as it arrives) |
-| `response.audio_transcript.done` | Full text transcript of the bot's spoken reply |
+| `response.output_audio.delta` | Base64 PCM16 audio chunk of the bot's spoken reply (stream continuously, play as it arrives) |
+| `response.output_audio_transcript.done` | Full text transcript of the bot's spoken reply |
 | `conversation.item.input_audio_transcription.completed` | Transcript of what the user said |
-| `response.text.done` | Text-only reply (if requested) |
+| `response.output_text.done` | Text-only reply (if requested) |
 | `error` | Error payload from the Realtime API |
 
 Audio format both directions: **PCM16, 24kHz mono** (per OpenAI Realtime defaults) — not mp3, and not base64-wrapped-in-JSON like the HTTP endpoint's final blob; it's chunked as a continuous stream of `response.audio.delta` events.
@@ -126,7 +126,7 @@ The bot can also internally call a `search_knowledge_base` tool mid-conversation
 
 ### Minimal client responsibilities
 1. Capture mic → PCM16 24kHz → base64 → send as `input_audio_buffer.append` events.
-2. Listen for `response.audio.delta` events → decode base64 → play/queue as PCM16 audio.
+2. Listen for `response.output_audio.delta` events → decode base64 → play/queue as PCM16 audio.
 3. Handle `error` events and disconnects gracefully.
 
 ---
