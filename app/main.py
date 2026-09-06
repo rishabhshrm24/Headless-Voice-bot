@@ -124,6 +124,15 @@ def clear_sessions():
     return {"status": "ok", "message": "Session history cleared"}
 
 
+@app.post("/api/sessions/{session_id}/end", responses={404: {"description": "No active live session found"}})
+async def end_session(session_id: str):
+    """Force-close an active live voice WebSocket session from the dashboard."""
+    closed = await tracker.close_session(session_id)
+    if not closed:
+        raise HTTPException(status_code=404, detail="No active live session found")
+    return {"status": "ok", "message": f"Session {session_id} ended"}
+
+
 @app.get("/api/stats")
 def get_stats():
     """Retrieve aggregated agent activity metrics & knowledge base status."""

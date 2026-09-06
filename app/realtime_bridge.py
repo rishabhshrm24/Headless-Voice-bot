@@ -159,6 +159,7 @@ async def run_voice_bridge(client_ws: WebSocket, index: RagIndex) -> None:
         ("Authorization", f"Bearer {config.OPENAI_API_KEY}"),
     ]
 
+    tracker.register_voice_socket(session_id, client_ws)
     try:
         async with websockets.connect(
             OPENAI_REALTIME_URL, extra_headers=headers, max_size=None
@@ -170,15 +171,21 @@ async def run_voice_bridge(client_ws: WebSocket, index: RagIndex) -> None:
                 "Connected to OpenAI Realtime API",
                 {"model": config.REALTIME_MODEL, "voice": config.TTS_VOICE},
             )
-            await asyncio.gather(
-                _client_loop(client_ws, openai_ws, session_id),
-                _openai_loop(openai_ws, client_ws, index, session_id),
+            client_task = asyncio.create_task(_client_loop(client_ws, openai_ws, session_id))
+            openai_task = asyncio.create_task(_openai_loop(openai_ws, client_ws, index, session_id))
+            # Stop as soon as either side disconnects (e.g. dashboard force-closes client_ws).
+            _, pending = await asyncio.wait(
+                {client_task, openai_task}, return_when=asyncio.FIRST_COMPLETED
             )
+            for task in pending:
+                task.cancel()
             tracker.end_session(session_id, status="completed")
 
     except Exception as e:
         logger.exception("Voice bridge error: %s", e)
         tracker.end_session(session_id, status="error", error=str(e))
+    finally:
+        tracker.unregister_voice_socket(session_id)
 
 
 async def handle_function_call(

@@ -253,6 +253,7 @@
               <div class="flex items-center gap-2">
                 <span id="selectedSessionId" class="font-mono text-xs font-bold text-slate-300">Select a session</span>
                 <button id="copyIdBtn" onclick="copySelectedSessionId()" class="hidden text-slate-500 hover:text-slate-300 text-xs" title="Copy ID">📋</button>
+                <button id="endSessionBtn" onclick="endSelectedSession()" class="hidden px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-semibold transition" title="Force-close this live WebSocket session">⏹ End Session</button>
               </div>
               <p id="selectedSessionMeta" class="text-[11px] text-slate-400 mt-0.5">Click any session on the left to inspect its live activity timeline & details.</p>
             </div>
@@ -715,6 +716,9 @@ How can I contact customer support?</textarea>
       document.getElementById('selectedStatusBadge').outerHTML = getStatusBadge(session.status, 'selectedStatusBadge');
       document.getElementById('selectedSessionId').innerText = session.id;
       document.getElementById('copyIdBtn').classList.remove('hidden');
+      const endBtn = document.getElementById('endSessionBtn');
+      const canEnd = session.status === 'active' && session.session_type === 'websocket_voice';
+      endBtn.classList.toggle('hidden', !canEnd);
 
       const metaText = `Type: ${session.session_type} • Host: ${session.client_host} • Started: ${session.started_iso ? session.started_iso.substring(11, 19) : ''} • Duration: ${session.duration_seconds}s`;
       document.getElementById('selectedSessionMeta').innerText = metaText;
@@ -1021,6 +1025,18 @@ How can I contact customer support?</textarea>
       if (state.selectedSessionId) {
         navigator.clipboard.writeText(state.selectedSessionId);
         alert(`Copied session ID: ${state.selectedSessionId}`);
+      }
+    }
+
+    async function endSelectedSession() {
+      if (!state.selectedSessionId) return;
+      if (!confirm('End this live voice session? This will close the WebSocket connection.')) return;
+      try {
+        const res = await fetch(`${getTargetBaseUrl()}/api/sessions/${state.selectedSessionId}/end`, { method: 'POST' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        document.getElementById('endSessionBtn').classList.add('hidden');
+      } catch (e) {
+        alert(`Failed to end session: ${e.message}`);
       }
     }
 

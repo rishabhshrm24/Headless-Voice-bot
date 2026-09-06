@@ -134,7 +134,26 @@ class SessionTracker:
         self._session_order: List[str] = []
         self._max_sessions = max_sessions
         self._monitors: Set[WebSocket] = set()
+        self._voice_sockets: Dict[str, WebSocket] = {}
         self._lock = asyncio.Lock()
+
+    def register_voice_socket(self, session_id: str, websocket: WebSocket) -> None:
+        """Track a live /ws/voice connection so it can be force-closed from the dashboard."""
+        self._voice_sockets[session_id] = websocket
+
+    def unregister_voice_socket(self, session_id: str) -> None:
+        self._voice_sockets.pop(session_id, None)
+
+    async def close_session(self, session_id: str) -> bool:
+        """Force-close an active session's live WebSocket (used by the dashboard's End Session button)."""
+        websocket = self._voice_sockets.get(session_id)
+        if not websocket:
+            return False
+        try:
+            await websocket.close(code=1000, reason="Ended by dashboard")
+        except Exception:
+            pass
+        return True
 
     def create_session(
         self,
