@@ -39,7 +39,11 @@ curl -X POST https://headless-voicebot-poc.onrender.com/voice/query \
   "transcript": "What are your support hours?",
   "answer": "We are available Monday through Friday, 9am to 5pm.",
   "sources": [
-    { "source": "sample_kb.md", "score": 0.83 }
+    {
+      "source": "sample_kb.md",
+      "score": 0.83,
+      "text": "We are available Monday through Friday, 9am to 5pm."
+    }
   ],
   "audio_base64": "SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5...",
   "audio_format": "mp3"
@@ -50,9 +54,11 @@ curl -X POST https://headless-voicebot-poc.onrender.com/voice/query \
 |---|---|---|
 | `transcript` | string | Speech-to-text of the uploaded audio |
 | `answer` | string | RAG-generated text answer |
-| `sources` | array | KB chunks used, each `{ source, score }` |
+| `sources` | array | KB chunks used; for DeepEval RAG metrics, each item should include `text`, `source`, and `score` |
 | `audio_base64` | string | Base64-encoded **mp3** bytes of the spoken answer — **must be decoded client-side** to play/save |
 | `audio_format` | string | Always `"mp3"` currently |
+
+> DeepEval retrieval metrics require the full chunk text, not just a filename or a score. Each `sources` item should therefore include `text` so the tester can populate `retrieval_context` for faithfulness, contextual recall, and contextual precision checks.
 
 Response is **always JSON** — audio is never returned as a raw binary stream from this endpoint. To get playable audio, base64-decode `audio_base64` and write it to a `.mp3` file / audio buffer.
 

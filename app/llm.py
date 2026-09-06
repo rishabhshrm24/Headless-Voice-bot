@@ -37,7 +37,14 @@ def answer_query(index: RagIndex, question: str, top_k: int = config.TOP_K) -> d
     return {
         "question": question,
         "answer": answer,
-        "sources": [{"source": c["source"], "score": c["score"]} for c in chunks],
+        "sources": [
+            {
+                "source": c["source"],
+                "score": c["score"],
+                "text": c["text"],
+            }
+            for c in chunks
+        ],
     }
 
 
