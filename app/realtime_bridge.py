@@ -156,7 +156,7 @@ async def run_voice_bridge(client_ws: WebSocket, index: RagIndex) -> None:
 
     try:
         async with websockets.connect(
-            OPENAI_REALTIME_URL, additional_headers=headers, max_size=None
+            OPENAI_REALTIME_URL, extra_headers=headers, max_size=None
         ) as openai_ws:
             await openai_ws.send(json.dumps(session_update_payload()))
             tracker.record_event(
