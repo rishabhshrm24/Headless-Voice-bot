@@ -22,7 +22,11 @@ OPENAI_REALTIME_URL = f"wss://api.openai.com/v1/realtime?model={config.REALTIME_
 SEARCH_TOOL = {
     "type": "function",
     "name": "search_knowledge_base",
-    "description": "Search the domain knowledge base for information relevant to the user's question.",
+    "description": (
+        "Search the domain knowledge base for information relevant to the user's question. "
+        "You must call this before answering any question about product features, error codes, "
+        "billing, account status, or policies - do not answer such questions from general knowledge."
+    ),
     "parameters": {
         "type": "object",
         "properties": {
