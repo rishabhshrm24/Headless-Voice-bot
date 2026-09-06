@@ -340,7 +340,12 @@ async def voice_query(file: UploadFile = File(...), request: Request = None):
         session.id,
         "audio_received",
         f"Audio file received: {filename}",
-        {"filename": filename, "size_bytes": len(audio_bytes), "content_type": file.content_type},
+        {
+            "filename": filename,
+            "size_bytes": len(audio_bytes),
+            "content_type": file.content_type,
+            "audio_base64": audio_to_base64(audio_bytes),
+        },
     )
 
     try:
@@ -369,7 +374,12 @@ async def voice_query(file: UploadFile = File(...), request: Request = None):
             session.id,
             "speech_synthesized",
             f"Synthesized voice reply ({len(speech_bytes)} bytes)",
-            {"answer": result["answer"], "audio_format": "mp3", "size_bytes": len(speech_bytes)},
+            {
+                "answer": result["answer"],
+                "audio_format": "mp3",
+                "size_bytes": len(speech_bytes),
+                "audio_base64": audio_to_base64(speech_bytes),
+            },
         )
 
         tracker.end_session(session.id, status="completed")

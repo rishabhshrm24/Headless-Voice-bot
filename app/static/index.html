@@ -775,19 +775,25 @@ How can I contact customer support?</textarea>
 
       // Extract conversational turns
       const turns = [];
+      let pendingUserAudio = null;
       for (const ev of events) {
-        if (ev.event_type === 'user_message' || ev.event_type === 'speech_transcribed') {
+        if (ev.event_type === 'audio_received') {
+          pendingUserAudio = { base64: ev.details.audio_base64, mime: ev.details.content_type || 'audio/wav' };
+        } else if (ev.event_type === 'user_message' || ev.event_type === 'speech_transcribed') {
           turns.push({
             role: 'user',
             text: ev.details.question || ev.details.transcript || ev.details.text || '',
             time: ev.time_str,
+            audio: pendingUserAudio,
           });
+          pendingUserAudio = null;
         } else if (ev.event_type === 'assistant_reply' || ev.event_type === 'speech_synthesized') {
           turns.push({
             role: 'assistant',
             text: ev.details.answer || ev.details.transcript || ev.details.text || '',
             sources: ev.details.sources || [],
             time: ev.time_str,
+            audio: ev.details.audio_base64 ? { base64: ev.details.audio_base64, mime: `audio/${ev.details.audio_format || 'mp3'}` } : null,
           });
         }
       }
@@ -798,6 +804,10 @@ How can I contact customer support?</textarea>
       }
 
       container.innerHTML = turns.map(t => {
+        const audioHtml = t.audio
+          ? `<audio controls preload="none" class="w-full h-8 mt-1.5" src="data:${t.audio.mime};base64,${t.audio.base64}"></audio>`
+          : '';
+
         if (t.role === 'user') {
           return `
             <div class="flex items-start gap-2.5 justify-end">
@@ -807,6 +817,7 @@ How can I contact customer support?</textarea>
                   <span class="font-mono">${t.time}</span>
                 </div>
                 <p>${escapeHtml(t.text)}</p>
+                ${audioHtml}
               </div>
               <div class="h-7 w-7 rounded-full bg-indigo-500 flex items-center justify-center text-xs font-bold shrink-0">👤</div>
             </div>
@@ -833,6 +844,7 @@ How can I contact customer support?</textarea>
                   <span class="font-mono">${t.time}</span>
                 </div>
                 <p class="whitespace-pre-wrap">${escapeHtml(t.text)}</p>
+                ${audioHtml}
                 ${sourcesHtml}
               </div>
             </div>
@@ -877,11 +889,20 @@ How can I contact customer support?</textarea>
 
     // Helper: Details formatter
     function formatEventDetails(type, details) {
-      if (details.transcript) return `Transcript: <span class="text-emerald-300">"${escapeHtml(details.transcript)}"</span>`;
-      if (details.question) return `Question: <span class="text-indigo-300">"${escapeHtml(details.question)}"</span>`;
-      if (details.answer) return `Answer: <span class="text-slate-200">"${escapeHtml(details.answer)}"</span>`;
+      let audioHtml = '';
+      if (details.audio_base64) {
+        const mime = type === 'audio_received'
+          ? (details.content_type || 'audio/wav')
+          : `audio/${details.audio_format || 'mp3'}`;
+        audioHtml = `<audio controls preload="none" class="w-full h-8 mt-1.5" src="data:${mime};base64,${details.audio_base64}"></audio>`;
+      }
+
+      if (details.transcript) return `Transcript: <span class="text-emerald-300">"${escapeHtml(details.transcript)}"</span>${audioHtml}`;
+      if (details.question) return `Question: <span class="text-indigo-300">"${escapeHtml(details.question)}"</span>${audioHtml}`;
+      if (details.answer) return `Answer: <span class="text-slate-200">"${escapeHtml(details.answer)}"</span>${audioHtml}`;
       if (details.query) return `RAG Query: <span class="text-cyan-300">"${escapeHtml(details.query)}"</span>`;
       if (details.error) return `<span class="text-rose-400">Error: ${escapeHtml(JSON.stringify(details.error))}</span>`;
+      if (audioHtml) return `${escapeHtml(details.filename || 'Audio')} (${details.size_bytes ?? '?'} bytes)${audioHtml}`;
       return escapeHtml(JSON.stringify(details, null, 2));
     }
 
