@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voicebot Agent Activity & Session Monitor</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            },
+            dark: {
+              bg: '#0B0F17',
+              card: '#111827',
+              cardHover: '#172033',
+              border: '#1E293B',
+              borderLight: '#334155',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    code, pre, .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0B0F17;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1E293B;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+    @keyframes pulse-slow {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.05); }
+    }
+    .animate-pulse-slow {
+      animation: pulse-slow 2.5s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-dark-bg text-slate-100 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- Top Navbar -->
+  <header class="border-b border-dark-border bg-dark-card/90 backdrop-blur sticky top-0 z-40 px-4 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-3.5">
+      <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white font-bold text-xl">
+        🎙️
+      </div>
+      <div>
+        <div class="flex items-center gap-2.5">
+          <h1 class="text-lg font-bold tracking-tight text-white">Voicebot Agent Monitor</h1>
+          <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Session Activity</span>
+        </div>
+        <div class="text-xs text-slate-400 flex items-center flex-wrap gap-2 mt-0.5">
+          <span id="wsStatusBadge" class="inline-flex items-center gap-1.5 text-xs text-amber-400">
+            <span class="h-2 w-2 rounded-full bg-amber-400 animate-pulse"></span> Connecting...
+          </span>
+          <span class="text-slate-600">•</span>
+          <div class="flex items-center gap-1 bg-dark-bg/80 border border-dark-border px-2 py-0.5 rounded-md">
+            <span class="text-slate-500 font-mono text-[11px]">Target:</span>
+            <span id="currentTargetUrlLabel" class="font-mono text-[11px] text-indigo-300 font-medium">auto</span>
+            <button onclick="promptChangeServerUrl()" class="text-indigo-400 hover:text-indigo-300 text-[11px] underline ml-1" title="Change target agent URL to monitor a remote deployment">Switch URL</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Header Actions -->
+    <div class="flex items-center flex-wrap gap-2.5 text-xs">
+      <button onclick="promptChangeServerUrl()" class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-dark-card border border-dark-border hover:border-indigo-500/60 text-slate-200 font-medium transition">
+        <span>🌐 Connect URL</span>
+      </button>
+
+      <button onclick="openTesterModal('chat')" class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition shadow-sm shadow-indigo-600/30">
+        <span>🧪 Test Agent</span>
+      </button>
+
+      <button onclick="openKnowledgeModal()" class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-dark-card border border-dark-border hover:border-slate-600 text-slate-200 font-medium transition">
+        <span>📚 Knowledge Base</span>
+      </button>
+
+      <button onclick="fetchSessions()" title="Refresh Session List" class="p-2 rounded-lg bg-dark-card border border-dark-border hover:border-slate-600 text-slate-300 hover:text-white transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+      </button>
+
+      <button onclick="clearAllSessions()" title="Clear Session History" class="p-2 rounded-lg bg-dark-card border border-dark-border hover:border-rose-800 text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+      </button>
+
+      <button onclick="exportSessionsJson()" title="Export JSON" class="p-2 rounded-lg bg-dark-card border border-dark-border hover:border-slate-600 text-slate-300 hover:text-white transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-[1600px] w-full mx-auto p-4 lg:p-6 space-y-6">
+
+    <!-- KPI / Metrics Grid -->
+    <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
+      <!-- Active Sessions -->
+      <div class="bg-dark-card border border-dark-border rounded-xl p-4 flex flex-col justify-between relative overflow-hidden group hover:border-dark-borderLight transition">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-medium">
+          <span>Active Sessions</span>
+          <span class="h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span id="metricActiveSessions" class="text-2xl font-extrabold text-emerald-400">0</span>
+          <span class="text-xs text-slate-500">live</span>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 opacity-60"></div>
+      </div>
+
+      <!-- Total Sessions -->
+      <div class="bg-dark-card border border-dark-border rounded-xl p-4 flex flex-col justify-between relative overflow-hidden group hover:border-dark-borderLight transition">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-medium">
+          <span>Total Sessions</span>
+          <span class="text-indigo-400">📋</span>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span id="metricTotalSessions" class="text-2xl font-extrabold text-white">0</span>
+          <span id="metricTotalQueries" class="text-xs text-slate-500">0 queries</span>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-60"></div>
+      </div>
+
+      <!-- RAG Searches -->
+      <div class="bg-dark-card border border-dark-border rounded-xl p-4 flex flex-col justify-between relative overflow-hidden group hover:border-dark-borderLight transition">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-medium">
+          <span>RAG Retrievals</span>
+          <span class="text-cyan-400">🔍</span>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span id="metricRagSearches" class="text-2xl font-extrabold text-cyan-400">0</span>
+          <span class="text-xs text-slate-500">lookups</span>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-cyan-500 to-blue-500 opacity-60"></div>
+      </div>
+
+      <!-- Avg Duration -->
+      <div class="bg-dark-card border border-dark-border rounded-xl p-4 flex flex-col justify-between relative overflow-hidden group hover:border-dark-borderLight transition">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-medium">
+          <span>Avg Session Duration</span>
+          <span class="text-amber-400">⏱️</span>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span id="metricAvgDuration" class="text-2xl font-extrabold text-amber-300">0.0s</span>
+          <span class="text-xs text-slate-500">latency</span>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-500 to-orange-500 opacity-60"></div>
+      </div>
+
+      <!-- Knowledge Base Chunks -->
+      <div class="bg-dark-card border border-dark-border rounded-xl p-4 flex flex-col justify-between relative overflow-hidden group hover:border-dark-borderLight transition col-span-2 md:col-span-1">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-medium">
+          <span>RAG KB Chunks</span>
+          <span class="text-purple-400">🧠</span>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span id="metricKbChunks" class="text-2xl font-extrabold text-purple-400">--</span>
+          <span class="text-xs text-slate-500">indexed</span>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 to-pink-500 opacity-60"></div>
+      </div>
+    </section>
+
+    <!-- Main 2-Column Monitoring Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[640px]">
+
+      <!-- Left Column: Session List & Filter (5 cols) -->
+      <div class="lg:col-span-5 bg-dark-card border border-dark-border rounded-2xl flex flex-col overflow-hidden shadow-xl">
+        <!-- List Header & Search -->
+        <div class="p-4 border-b border-dark-border space-y-3 bg-dark-card/50">
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-bold text-white flex items-center gap-2">
+              <span>Session Activity Stream</span>
+              <span id="sessionListCount" class="text-xs px-2 py-0.5 rounded-md bg-dark-bg border border-dark-border text-slate-400 font-mono">0</span>
+            </h2>
+            <div class="flex items-center gap-2">
+              <label class="flex items-center gap-1 text-[11px] text-slate-400 cursor-pointer select-none">
+                <input type="checkbox" id="autoScrollCheckbox" checked class="rounded bg-dark-bg border-dark-border text-indigo-600 focus:ring-0">
+                <span>Auto-select latest</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Channel Filter Tabs -->
+          <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+            <button onclick="setTypeFilter('all')" data-type="all" class="type-filter-btn px-2.5 py-1 rounded-lg font-medium bg-indigo-600 text-white whitespace-nowrap transition">All</button>
+            <button onclick="setTypeFilter('websocket_voice')" data-type="websocket_voice" class="type-filter-btn px-2.5 py-1 rounded-lg font-medium bg-dark-bg border border-dark-border text-slate-400 hover:text-slate-200 whitespace-nowrap transition">🎙️ Live Voice</button>
+            <button onclick="setTypeFilter('http_voice')" data-type="http_voice" class="type-filter-btn px-2.5 py-1 rounded-lg font-medium bg-dark-bg border border-dark-border text-slate-400 hover:text-slate-200 whitespace-nowrap transition">📁 Voice Query</button>
+            <button onclick="setTypeFilter('text_chat')" data-type="text_chat" class="type-filter-btn px-2.5 py-1 rounded-lg font-medium bg-dark-bg border border-dark-border text-slate-400 hover:text-slate-200 whitespace-nowrap transition">💬 Chat</button>
+            <button onclick="setTypeFilter('batch_chat')" data-type="batch_chat" class="type-filter-btn px-2.5 py-1 rounded-lg font-medium bg-dark-bg border border-dark-border text-slate-400 hover:text-slate-200 whitespace-nowrap transition">📦 Batch</button>
+          </div>
+
+          <!-- Search Input -->
+          <div class="relative">
+            <input type="text" id="searchInput" aria-label="Filter sessions by ID, prompt, transcript, IP" oninput="handleSearchChange()" placeholder="Filter by ID, prompt, transcript, IP..." class="w-full bg-dark-bg border border-dark-border focus:border-indigo-500 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 outline-none transition pr-8">
+            <span class="absolute right-3 top-2.5 text-slate-500 text-xs">🔍</span>
+          </div>
+        </div>
+
+        <!-- Session List Scroll Container -->
+        <div id="sessionList" class="flex-1 overflow-y-auto p-3 space-y-2 max-h-[600px] divide-y divide-dark-border/40">
+          <!-- Empty Placeholder -->
+          <div id="sessionListEmpty" class="text-center py-16 text-slate-500 space-y-2">
+            <div class="text-3xl">📭</div>
+            <p class="text-sm font-medium">No sessions recorded yet</p>
+            <p class="text-xs text-slate-600">Send a voice or chat query to see activity appear here in real-time.</p>
+            <button onclick="openTesterModal('chat')" class="mt-3 inline-block px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 text-xs font-medium border border-indigo-500/30">
+              Run a quick test
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Detailed Session Inspector (7 cols) -->
+      <div class="lg:col-span-7 bg-dark-card border border-dark-border rounded-2xl flex flex-col overflow-hidden shadow-xl">
+        <!-- Inspector Top Header -->
+        <div id="inspectorHeader" class="p-4 border-b border-dark-border bg-dark-card/60 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <span id="selectedStatusBadge" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700">
+              No Selection
+            </span>
+            <div>
+              <div class="flex items-center gap-2">
+                <span id="selectedSessionId" class="font-mono text-xs font-bold text-slate-300">Select a session</span>
+                <button id="copyIdBtn" onclick="copySelectedSessionId()" class="hidden text-slate-500 hover:text-slate-300 text-xs" title="Copy ID">📋</button>
+              </div>
+              <p id="selectedSessionMeta" class="text-[11px] text-slate-400 mt-0.5">Click any session on the left to inspect its live activity timeline & details.</p>
+            </div>
+          </div>
+
+          <!-- Inspector Tabs -->
+          <div class="flex items-center gap-1 bg-dark-bg p-1 rounded-xl border border-dark-border text-xs">
+            <button onclick="switchInspectorTab('timeline')" id="tabBtnTimeline" class="px-3 py-1.5 rounded-lg font-medium bg-indigo-600 text-white transition">Timeline</button>
+            <button onclick="switchInspectorTab('chat')" id="tabBtnChat" class="px-3 py-1.5 rounded-lg font-medium text-slate-400 hover:text-white transition">Transcript</button>
+            <button onclick="switchInspectorTab('rag')" id="tabBtnRag" class="px-3 py-1.5 rounded-lg font-medium text-slate-400 hover:text-white transition">RAG Context</button>
+            <button onclick="switchInspectorTab('raw')" id="tabBtnRaw" class="px-3 py-1.5 rounded-lg font-medium text-slate-400 hover:text-white transition">JSON</button>
+          </div>
+        </div>
+
+        <!-- Inspector Content Area -->
+        <div id="inspectorBody" class="flex-1 p-4 lg:p-6 overflow-y-auto max-h-[640px] space-y-4">
+          <!-- Timeline Tab View -->
+          <div id="viewTimeline" class="space-y-3">
+            <div class="text-center py-20 text-slate-500">
+              <span class="text-4xl block mb-2">⚡</span>
+              <p class="text-sm">Select a session to view real-time timeline events</p>
+            </div>
+          </div>
+
+          <!-- Chat Transcript View -->
+          <div id="viewChat" class="hidden space-y-3"></div>
+
+          <!-- RAG Context View -->
+          <div id="viewRag" class="hidden space-y-3"></div>
+
+          <!-- Raw JSON View -->
+          <div id="viewRaw" class="hidden">
+            <pre id="rawJsonCode" class="font-mono text-xs text-slate-300 bg-dark-bg p-4 rounded-xl border border-dark-border overflow-x-auto whitespace-pre-wrap"></pre>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Interactive Test Modal / Drawer -->
+  <div id="testerModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-dark-card border border-dark-border rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl relative">
+      <div class="flex items-center justify-between border-b border-dark-border pb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🧪</span>
+          <h3 class="font-bold text-white text-base">Test Agent & Generate Session</h3>
+        </div>
+        <button onclick="closeTesterModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
+      </div>
+
+      <!-- Mode switcher inside tester -->
+      <div class="flex gap-2 border-b border-dark-border pb-3 text-xs">
+        <button onclick="switchTesterMode('chat')" id="testTabChat" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-medium">💬 Text Chat (/chat)</button>
+        <button onclick="switchTesterMode('voice')" id="testTabVoice" class="px-3 py-1.5 rounded-lg bg-dark-bg border border-dark-border text-slate-400 font-medium hover:text-white">📁 Voice Query (/voice/query)</button>
+        <button onclick="switchTesterMode('batch')" id="testTabBatch" class="px-3 py-1.5 rounded-lg bg-dark-bg border border-dark-border text-slate-400 font-medium hover:text-white">📦 Batch Chat</button>
+      </div>
+
+      <!-- Text Chat Form -->
+      <div id="testerFormChat" class="space-y-4">
+        <div>
+          <label for="testQuestionInput" class="block text-xs font-semibold text-slate-300 mb-1.5">User Question:</label>
+          <div class="flex gap-2">
+            <input type="text" id="testQuestionInput" placeholder="e.g., What is your refund policy?" value="What is your refund policy?" class="flex-1 bg-dark-bg border border-dark-border focus:border-indigo-500 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none">
+            <button onclick="runChatTest()" id="btnSendChatTest" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition">
+              Send
+            </button>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-1.5">
+          <span class="text-[11px] text-slate-500">Quick samples:</span>
+          <button onclick="setSampleQuestion('What are your business hours?')" class="text-[11px] px-2 py-0.5 rounded bg-dark-bg border border-dark-border text-indigo-400 hover:border-indigo-500">Business hours</button>
+          <button onclick="setSampleQuestion('How do I contact support?')" class="text-[11px] px-2 py-0.5 rounded bg-dark-bg border border-dark-border text-indigo-400 hover:border-indigo-500">Contact support</button>
+          <button onclick="setSampleQuestion('Tell me about your pricing plans.')" class="text-[11px] px-2 py-0.5 rounded bg-dark-bg border border-dark-border text-indigo-400 hover:border-indigo-500">Pricing plans</button>
+        </div>
+      </div>
+
+      <!-- Voice Query Form -->
+      <div id="testerFormVoice" class="hidden space-y-4">
+        <div>
+          <label for="testVoiceFileInput" class="block text-xs font-semibold text-slate-300 mb-1.5">Upload Voice File (.wav, .mp3, .m4a):</label>
+          <input type="file" id="testVoiceFileInput" accept="audio/*" class="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500">
+        </div>
+        <button onclick="runVoiceTest()" id="btnSendVoiceTest" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition">
+          Upload & Transcribe
+        </button>
+      </div>
+
+      <!-- Batch Query Form -->
+      <div id="testerFormBatch" class="hidden space-y-4">
+        <div>
+          <label for="testBatchInput" class="block text-xs font-semibold text-slate-300 mb-1.5">Questions (one per line):</label>
+          <textarea id="testBatchInput" rows="4" class="w-full bg-dark-bg border border-dark-border focus:border-indigo-500 rounded-xl p-3 text-xs text-white outline-none">What is your refund policy?
+What are your business hours?
+How can I contact customer support?</textarea>
+        </div>
+        <button onclick="runBatchTest()" id="btnSendBatchTest" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition">
+          Execute Batch
+        </button>
+      </div>
+
+      <!-- Test Output Result Box -->
+      <div id="testerResultBox" class="hidden bg-dark-bg border border-dark-border rounded-xl p-4 space-y-2">
+        <div class="flex items-center justify-between text-xs font-semibold text-slate-400">
+          <span>Agent Response:</span>
+          <span id="testerDuration" class="text-emerald-400 font-mono"></span>
+        </div>
+        <p id="testerAnswerText" class="text-xs text-slate-200 leading-relaxed"></p>
+        <div id="testerAudioPlayerContainer" class="hidden pt-2">
+          <audio id="testerAudioPlayer" controls class="w-full h-8"></audio>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Knowledge Base Modal -->
+  <div id="knowledgeModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-dark-card border border-dark-border rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl relative">
+      <div class="flex items-center justify-between border-b border-dark-border pb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">📚</span>
+          <h3 class="font-bold text-white text-base">Knowledge Base & RAG Status</h3>
+        </div>
+        <button onclick="closeKnowledgeModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
+      </div>
+
+      <div class="space-y-4">
+        <div class="flex items-center justify-between bg-dark-bg p-4 rounded-xl border border-dark-border">
+          <div>
+            <p class="text-xs font-semibold text-slate-300">Total Indexed Chunks</p>
+            <p id="kbModalChunkCount" class="text-2xl font-extrabold text-indigo-400 mt-1">--</p>
+          </div>
+          <button onclick="triggerIngest()" id="btnIngest" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition flex items-center gap-2">
+            <span>⚡ Re-index Knowledge (/ingest)</span>
+          </button>
+        </div>
+
+        <div>
+          <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Indexed Documents in data/docs</h4>
+          <div id="kbDocsList" class="bg-dark-bg border border-dark-border rounded-xl p-3 text-xs text-slate-300 space-y-1.5 max-h-48 overflow-y-auto">
+            <p class="text-slate-500">Loading document list...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- App Logic Javascript -->
+  <script>
+    // State management
+    let state = {
+      sessions: [],
+      selectedSessionId: null,
+      selectedSessionData: null,
+      typeFilter: 'all',
+      searchQuery: '',
+      activeTab: 'timeline',
+      ws: null,
+      stats: {},
+      targetUrl: localStorage.getItem('voicebot_target_url') || '',
+    };
+
+    function getTargetBaseUrl() {
+      if (state.targetUrl && state.targetUrl.trim()) {
+        let u = state.targetUrl.trim();
+        if (!u.startsWith('http://') && !u.startsWith('https://')) {
+          u = 'https://' + u;
+        }
+        return u.replace(/\/+$/, '');
+      }
+      return window.location.origin;
+    }
+
+    function getTargetWsUrl() {
+      const baseUrl = getTargetBaseUrl();
+      const wsProto = baseUrl.startsWith('https:') ? 'wss:' : 'ws:';
+      const hostPart = baseUrl.replace(/^https?:\/\//, '');
+      return `${wsProto}//${hostPart}/ws/monitor`;
+    }
+
+    function promptChangeServerUrl() {
+      const current = getTargetBaseUrl();
+      const entered = prompt(
+        "Enter the base URL of your deployed Voicebot agent to monitor (e.g. https://your-app.onrender.com or http://localhost:8000):",
+        current
+      );
+      if (entered !== null) {
+        const clean = entered.trim();
+        if (!clean || clean === window.location.origin) {
+          state.targetUrl = '';
+          localStorage.removeItem('voicebot_target_url');
+        } else {
+          state.targetUrl = clean;
+          localStorage.setItem('voicebot_target_url', clean);
+        }
+        updateTargetUrlDisplay();
+        reconnectAll();
+      }
+    }
+
+    function updateTargetUrlDisplay() {
+      const label = document.getElementById('currentTargetUrlLabel');
+      if (label) {
+        label.innerText = getTargetBaseUrl();
+      }
+    }
+
+    function reconnectAll() {
+      if (state.ws) {
+        try { state.ws.close(); } catch(e) {}
+      }
+      initWebSocket();
+      fetchStats();
+      fetchSessions();
+      fetchKnowledgeBaseInfo();
+    }
+
+    // Initialize application
+    window.addEventListener('DOMContentLoaded', () => {
+      updateTargetUrlDisplay();
+      initWebSocket();
+      fetchStats();
+      fetchSessions();
+      fetchKnowledgeBaseInfo();
+    });
+
+    // Setup live monitoring WebSocket
+    function initWebSocket() {
+      const wsUrl = getTargetWsUrl();
+      const statusBadge = document.getElementById('wsStatusBadge');
+
+      try {
+        state.ws = new WebSocket(wsUrl);
+
+        state.ws.onopen = () => {
+          statusBadge.innerHTML = `<span class="h-2 w-2 rounded-full bg-emerald-400"></span> Live Monitoring Connected`;
+          statusBadge.className = "inline-flex items-center gap-1.5 text-xs text-emerald-400";
+        };
+
+        state.ws.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            handleLiveEvent(msg);
+          } catch (e) {
+            console.error('Error handling WS event:', e);
+          }
+        };
+
+        state.ws.onclose = () => {
+          statusBadge.innerHTML = `<span class="h-2 w-2 rounded-full bg-rose-400"></span> Live Disconnected. Retrying...`;
+          statusBadge.className = "inline-flex items-center gap-1.5 text-xs text-rose-400";
+          setTimeout(initWebSocket, 3000);
+        };
+
+        state.ws.onerror = () => {
+          state.ws.close();
+        };
+      } catch (err) {
+        console.error('WS init failed:', err);
+      }
+    }
+
+    // Handle incoming live broadcast events from the server
+    function handleLiveEvent(msg) {
+      if (msg.action === 'init') {
+        updateStats(msg.stats);
+        if (msg.recent_sessions) {
+          state.sessions = msg.recent_sessions;
+          renderSessionList();
+          if (state.sessions.length > 0 && !state.selectedSessionId) {
+            selectSession(state.sessions[0].id);
+          }
+        }
+      } else if (msg.action === 'session_created') {
+        // Prepend new session
+        state.sessions = [msg.session, ...state.sessions.filter(s => s.id !== msg.session.id)];
+        renderSessionList();
+        fetchStats();
+
+        // Auto-select if enabled
+        const autoSelect = document.getElementById('autoScrollCheckbox').checked;
+        if (autoSelect) {
+          selectSession(msg.session.id);
+        }
+      } else if (msg.action === 'session_event') {
+        const session = state.sessions.find(s => s.id === msg.session_id);
+        if (session) {
+          session.status = msg.session_status;
+          session.summary = msg.session_summary;
+          session.stats = msg.stats;
+          session.duration_seconds = msg.duration_seconds;
+          renderSessionList();
+        }
+
+        // If currently inspected, append event to live timeline
+        if (state.selectedSessionId === msg.session_id) {
+          if (!state.selectedSessionData) {
+            state.selectedSessionData = { events: [] };
+          }
+          if (!state.selectedSessionData.events) {
+            state.selectedSessionData.events = [];
+          }
+          state.selectedSessionData.events.push(msg.event);
+          state.selectedSessionData.status = msg.session_status;
+          state.selectedSessionData.duration_seconds = msg.duration_seconds;
+          state.selectedSessionData.stats = msg.stats;
+          renderInspector();
+        }
+        fetchStats();
+      } else if (msg.action === 'session_ended') {
+        const idx = state.sessions.findIndex(s => s.id === msg.session.id);
+        if (idx !== -1) {
+          state.sessions[idx] = msg.session;
+        } else {
+          state.sessions.unshift(msg.session);
+        }
+        renderSessionList();
+        if (state.selectedSessionId === msg.session.id) {
+          state.selectedSessionData = msg.session;
+          renderInspector();
+        }
+        fetchStats();
+      } else if (msg.action === 'sessions_cleared') {
+        state.sessions = [];
+        state.selectedSessionId = null;
+        state.selectedSessionData = null;
+        renderSessionList();
+        renderInspector();
+        fetchStats();
+      }
+    }
+
+    // Fetch stats from REST API
+    async function fetchStats() {
+      try {
+        const res = await fetch(`${getTargetBaseUrl()}/api/stats`);
+        if (res.ok) {
+          const data = await res.json();
+          updateStats(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch stats:', err);
+      }
+    }
+
+    function updateStats(data) {
+      if (!data) return;
+      state.stats = data;
+      document.getElementById('metricActiveSessions').innerText = data.active_sessions ?? 0;
+      document.getElementById('metricTotalSessions').innerText = data.total_sessions ?? 0;
+      document.getElementById('metricTotalQueries').innerText = `${data.total_user_messages ?? 0} queries`;
+      document.getElementById('metricRagSearches').innerText = data.total_rag_searches ?? 0;
+      document.getElementById('metricAvgDuration').innerText = `${data.avg_duration_seconds ?? 0}s`;
+    }
+
+    // Fetch sessions list
+    async function fetchSessions() {
+      try {
+        let url = `${getTargetBaseUrl()}/api/sessions?limit=100`;
+        if (state.typeFilter !== 'all') url += `&type=${state.typeFilter}`;
+        if (state.searchQuery) url += `&search=${encodeURIComponent(state.searchQuery)}`;
+
+        const res = await fetch(url);
+        if (res.ok) {
+          const list = await res.json();
+          state.sessions = list;
+          renderSessionList();
+          if (state.sessions.length > 0 && !state.selectedSessionId) {
+            selectSession(state.sessions[0].id);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch sessions:', err);
+      }
+    }
+
+    // Select a session to inspect
+    async function selectSession(sessionId) {
+      state.selectedSessionId = sessionId;
+      renderSessionList(); // To update active highlight
+
+      try {
+        const res = await fetch(`${getTargetBaseUrl()}/api/sessions/${sessionId}`);
+        if (res.ok) {
+          state.selectedSessionData = await res.json();
+          renderInspector();
+        }
+      } catch (err) {
+        console.error('Failed to fetch session detail:', err);
+      }
+    }
+
+    // Render left session cards
+    function renderSessionList() {
+      const container = document.getElementById('sessionList');
+      const emptyEl = document.getElementById('sessionListEmpty');
+      const countEl = document.getElementById('sessionListCount');
+
+      countEl.innerText = state.sessions.length;
+
+      if (state.sessions.length === 0) {
+        container.innerHTML = '';
+        container.appendChild(emptyEl);
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+
+      emptyEl.classList.add('hidden');
+
+      const html = state.sessions.map(s => {
+        const isSelected = s.id === state.selectedSessionId;
+        const typeBadge = getTypeBadge(s.session_type);
+        const statusBadge = getStatusBadge(s.status);
+        const timeAgo = formatTimeAgo(s.started_at);
+
+        return `
+          <div onclick="selectSession('${s.id}')" class="p-3 rounded-xl cursor-pointer transition flex flex-col gap-2 ${
+            isSelected
+              ? 'bg-indigo-950/40 border border-indigo-500/40 shadow-md'
+              : 'bg-dark-card hover:bg-dark-cardHover border border-transparent'
+          }">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-1.5">
+                ${typeBadge}
+                <span class="font-mono text-xs font-semibold text-slate-300">${s.id}</span>
+              </div>
+              <div class="flex items-center gap-2 text-[11px] text-slate-500">
+                <span>${timeAgo}</span>
+                ${statusBadge}
+              </div>
+            </div>
+
+            <p class="text-xs text-slate-300 font-medium line-clamp-2">${escapeHtml(s.summary || 'Session in progress')}</p>
+
+            <div class="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-dark-border/40">
+              <span class="font-mono">${s.client_host}</span>
+              <div class="flex items-center gap-2">
+                ${s.stats?.rag_lookups ? `<span class="text-cyan-400 font-mono text-[10px]">🔍 ${s.stats.rag_lookups} RAG</span>` : ''}
+                <span class="font-mono text-slate-400">${s.duration_seconds}s</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.innerHTML = html;
+    }
+
+    // Render detailed session inspector
+    function renderInspector() {
+      const session = state.selectedSessionData;
+      if (!session) return;
+
+      // Header info
+      document.getElementById('selectedStatusBadge').outerHTML = getStatusBadge(session.status, 'selectedStatusBadge');
+      document.getElementById('selectedSessionId').innerText = session.id;
+      document.getElementById('copyIdBtn').classList.remove('hidden');
+
+      const metaText = `Type: ${session.session_type} • Host: ${session.client_host} • Started: ${session.started_iso ? session.started_iso.substring(11, 19) : ''} • Duration: ${session.duration_seconds}s`;
+      document.getElementById('selectedSessionMeta').innerText = metaText;
+
+      // 1. Render Timeline Tab
+      renderTimelineTab(session);
+
+      // 2. Render Transcript Tab
+      renderChatTab(session);
+
+      // 3. Render RAG Context Tab
+      renderRagTab(session);
+
+      // 4. Render Raw JSON Tab
+      document.getElementById('rawJsonCode').innerText = JSON.stringify(session, null, 2);
+    }
+
+    function renderTimelineTab(session) {
+      const container = document.getElementById('viewTimeline');
+      const events = session.events || [];
+
+      if (events.length === 0) {
+        container.innerHTML = `<div class="text-center py-16 text-slate-500 text-xs">No events recorded for this session yet.</div>`;
+        return;
+      }
+
+      container.innerHTML = events.map((ev, index) => {
+        const icon = getEventIcon(ev.event_type);
+        const color = getEventColor(ev.event_type);
+
+        let detailsHtml = '';
+        if (ev.details && Object.keys(ev.details).length > 0) {
+          detailsHtml = `
+            <div class="mt-2 bg-dark-bg/80 border border-dark-border rounded-lg p-2.5 text-xs font-mono text-slate-300 overflow-x-auto">
+              ${formatEventDetails(ev.event_type, ev.details)}
+            </div>
+          `;
+        }
+
+        return `
+          <div class="relative pl-7 pb-4 border-l-2 border-dark-border last:border-transparent last:pb-0">
+            <div class="absolute -left-[9px] top-0.5 h-4 w-4 rounded-full ${color.bg} border ${color.border} flex items-center justify-center text-[10px]">
+              ${icon}
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs font-bold ${color.text}">${escapeHtml(ev.title)}</span>
+              <span class="text-[10px] font-mono text-slate-500">${ev.time_str}</span>
+            </div>
+            ${detailsHtml}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderChatTab(session) {
+      const container = document.getElementById('viewChat');
+      const events = session.events || [];
+
+      // Extract conversational turns
+      const turns = [];
+      for (const ev of events) {
+        if (ev.event_type === 'user_message' || ev.event_type === 'speech_transcribed') {
+          turns.push({
+            role: 'user',
+            text: ev.details.question || ev.details.transcript || ev.details.text || '',
+            time: ev.time_str,
+          });
+        } else if (ev.event_type === 'assistant_reply' || ev.event_type === 'speech_synthesized') {
+          turns.push({
+            role: 'assistant',
+            text: ev.details.answer || ev.details.transcript || ev.details.text || '',
+            sources: ev.details.sources || [],
+            time: ev.time_str,
+          });
+        }
+      }
+
+      if (turns.length === 0) {
+        container.innerHTML = `<div class="text-center py-16 text-slate-500 text-xs">No conversation dialogue recorded in this session.</div>`;
+        return;
+      }
+
+      container.innerHTML = turns.map(t => {
+        if (t.role === 'user') {
+          return `
+            <div class="flex items-start gap-2.5 justify-end">
+              <div class="max-w-[80%] bg-indigo-600/90 text-white p-3 rounded-2xl rounded-tr-none text-xs leading-relaxed space-y-1 shadow-md">
+                <div class="flex items-center justify-between gap-2 text-[10px] text-indigo-200">
+                  <span class="font-semibold">User</span>
+                  <span class="font-mono">${t.time}</span>
+                </div>
+                <p>${escapeHtml(t.text)}</p>
+              </div>
+              <div class="h-7 w-7 rounded-full bg-indigo-500 flex items-center justify-center text-xs font-bold shrink-0">👤</div>
+            </div>
+          `;
+        } else {
+          let sourcesHtml = '';
+          if (t.sources && t.sources.length > 0) {
+            sourcesHtml = `
+              <div class="mt-2 pt-2 border-t border-dark-border text-[11px] space-y-1">
+                <span class="text-cyan-400 font-semibold flex items-center gap-1">📚 Retrieved Sources:</span>
+                <div class="flex flex-wrap gap-1">
+                  ${t.sources.map(s => `<span class="px-1.5 py-0.5 rounded bg-dark-bg border border-dark-border text-slate-300 font-mono text-[10px]">${escapeHtml(s.source)} (score: ${Math.round(s.score * 100)}%)</span>`).join('')}
+                </div>
+              </div>
+            `;
+          }
+
+          return `
+            <div class="flex items-start gap-2.5 justify-start">
+              <div class="h-7 w-7 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-xs font-bold shrink-0">🤖</div>
+              <div class="max-w-[85%] bg-dark-bg border border-dark-border text-slate-200 p-3.5 rounded-2xl rounded-tl-none text-xs leading-relaxed space-y-1 shadow-md">
+                <div class="flex items-center justify-between gap-2 text-[10px] text-slate-400">
+                  <span class="font-semibold text-purple-400">Assistant (Voicebot)</span>
+                  <span class="font-mono">${t.time}</span>
+                </div>
+                <p class="whitespace-pre-wrap">${escapeHtml(t.text)}</p>
+                ${sourcesHtml}
+              </div>
+            </div>
+          `;
+        }
+      }).join('');
+    }
+
+    function renderRagTab(session) {
+      const container = document.getElementById('viewRag');
+      const events = session.events || [];
+
+      const ragEvents = events.filter(e => e.event_type === 'rag_result' || e.event_type === 'rag_query');
+      if (ragEvents.length === 0) {
+        container.innerHTML = `<div class="text-center py-16 text-slate-500 text-xs">No RAG knowledge searches performed in this session.</div>`;
+        return;
+      }
+
+      container.innerHTML = ragEvents.map(ev => {
+        const sources = ev.details.sources || [];
+        return `
+          <div class="bg-dark-bg border border-dark-border rounded-xl p-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-cyan-400">Query: "${escapeHtml(ev.details.query || '')}"</span>
+              <span class="text-[10px] font-mono text-slate-500">${ev.time_str}</span>
+            </div>
+            <div class="space-y-2">
+              ${sources.map((s, idx) => `
+                <div class="bg-dark-card border border-dark-border rounded-lg p-3 text-xs space-y-1">
+                  <div class="flex items-center justify-between text-[11px]">
+                    <span class="text-indigo-300 font-mono font-semibold">Source #${idx+1}: ${escapeHtml(s.source || 'Knowledge Base')}</span>
+                    ${s.score ? `<span class="text-emerald-400 font-mono">Similarity: ${(s.score * 100).toFixed(1)}%</span>` : ''}
+                  </div>
+                  <p class="text-slate-300 font-mono text-[11px] leading-relaxed">${escapeHtml(s.text || '')}</p>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Helper: Details formatter
+    function formatEventDetails(type, details) {
+      if (details.transcript) return `Transcript: <span class="text-emerald-300">"${escapeHtml(details.transcript)}"</span>`;
+      if (details.question) return `Question: <span class="text-indigo-300">"${escapeHtml(details.question)}"</span>`;
+      if (details.answer) return `Answer: <span class="text-slate-200">"${escapeHtml(details.answer)}"</span>`;
+      if (details.query) return `RAG Query: <span class="text-cyan-300">"${escapeHtml(details.query)}"</span>`;
+      if (details.error) return `<span class="text-rose-400">Error: ${escapeHtml(JSON.stringify(details.error))}</span>`;
+      return escapeHtml(JSON.stringify(details, null, 2));
+    }
+
+    // Badge styling helpers
+    function getTypeBadge(type) {
+      const map = {
+        websocket_voice: `<span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">🎙️ Live WS</span>`,
+        http_voice: `<span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">📁 Voice Query</span>`,
+        text_chat: `<span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">💬 Text Chat</span>`,
+        batch_chat: `<span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">📦 Batch</span>`,
+        openai_compat: `<span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">🤖 OpenAI API</span>`,
+      };
+      return map[type] || `<span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-800 text-slate-400">${type}</span>`;
+    }
+
+    function getStatusBadge(status, id = null) {
+      const idAttr = id ? `id="${id}"` : '';
+      if (status === 'active') {
+        return `<span ${idAttr} class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Active</span>`;
+      } else if (status === 'completed') {
+        return `<span ${idAttr} class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">Completed</span>`;
+      } else {
+        return `<span ${idAttr} class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/30">Error</span>`;
+      }
+    }
+
+    function getEventIcon(type) {
+      switch(type) {
+        case 'session_start': return '🚀';
+        case 'user_message':
+        case 'speech_transcribed': return '👤';
+        case 'rag_query':
+        case 'rag_result': return '🔍';
+        case 'assistant_reply':
+        case 'speech_synthesized': return '🤖';
+        case 'tool_call': return '⚙️';
+        case 'error': return '⚠️';
+        case 'session_end': return '🏁';
+        default: return '•';
+      }
+    }
+
+    function getEventColor(type) {
+      switch(type) {
+        case 'session_start': return { bg: 'bg-indigo-900', border: 'border-indigo-500', text: 'text-indigo-400' };
+        case 'user_message':
+        case 'speech_transcribed': return { bg: 'bg-emerald-900', border: 'border-emerald-500', text: 'text-emerald-400' };
+        case 'rag_query':
+        case 'rag_result': return { bg: 'bg-cyan-900', border: 'border-cyan-500', text: 'text-cyan-400' };
+        case 'assistant_reply':
+        case 'speech_synthesized': return { bg: 'bg-purple-900', border: 'border-purple-500', text: 'text-purple-400' };
+        case 'error': return { bg: 'bg-rose-900', border: 'border-rose-500', text: 'text-rose-400' };
+        default: return { bg: 'bg-slate-800', border: 'border-slate-600', text: 'text-slate-300' };
+      }
+    }
+
+    function formatTimeAgo(epochSec) {
+      if (!epochSec) return '';
+      const diff = Math.floor(Date.now() / 1000 - epochSec);
+      if (diff < 5) return 'just now';
+      if (diff < 60) return `${diff}s ago`;
+      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+      return `${Math.floor(diff / 3600)}h ago`;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // Tab switching in inspector
+    function switchInspectorTab(tab) {
+      state.activeTab = tab;
+      const tabs = ['timeline', 'chat', 'rag', 'raw'];
+      tabs.forEach(t => {
+        const view = document.getElementById(`view${capitalize(t)}`);
+        const btn = document.getElementById(`tabBtn${capitalize(t)}`);
+        if (t === tab) {
+          view.classList.remove('hidden');
+          btn.className = "px-3 py-1.5 rounded-lg font-medium bg-indigo-600 text-white transition";
+        } else {
+          view.classList.add('hidden');
+          btn.className = "px-3 py-1.5 rounded-lg font-medium text-slate-400 hover:text-white transition";
+        }
+      });
+    }
+
+    function capitalize(s) {
+      return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+
+    // Filter controls
+    function setTypeFilter(type) {
+      state.typeFilter = type;
+      document.querySelectorAll('.type-filter-btn').forEach(btn => {
+        if (btn.dataset.type === type) {
+          btn.className = "type-filter-btn px-2.5 py-1 rounded-lg font-medium bg-indigo-600 text-white whitespace-nowrap transition";
+        } else {
+          btn.className = "type-filter-btn px-2.5 py-1 rounded-lg font-medium bg-dark-bg border border-dark-border text-slate-400 hover:text-slate-200 whitespace-nowrap transition";
+        }
+      });
+      fetchSessions();
+    }
+
+    function handleSearchChange() {
+      state.searchQuery = document.getElementById('searchInput').value.trim();
+      fetchSessions();
+    }
+
+    function copySelectedSessionId() {
+      if (state.selectedSessionId) {
+        navigator.clipboard.writeText(state.selectedSessionId);
+        alert(`Copied session ID: ${state.selectedSessionId}`);
+      }
+    }
+
+    async function clearAllSessions() {
+      if (!confirm('Are you sure you want to clear all session history?')) return;
+      try {
+        await fetch(`${getTargetBaseUrl()}/api/sessions/clear`, { method: 'POST' });
+        fetchSessions();
+        fetchStats();
+      } catch (err) {
+        console.error('Failed to clear sessions:', err);
+      }
+    }
+
+    function exportSessionsJson() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.sessions, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `voicebot_sessions_${Date.now()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    // Test Agent Modal Handlers
+    function openTesterModal(mode = 'chat') {
+      document.getElementById('testerModal').classList.remove('hidden');
+      switchTesterMode(mode);
+    }
+
+    function closeTesterModal() {
+      document.getElementById('testerModal').classList.add('hidden');
+    }
+
+    function switchTesterMode(mode) {
+      const modes = ['chat', 'voice', 'batch'];
+      modes.forEach(m => {
+        const form = document.getElementById(`testerForm${capitalize(m)}`);
+        const tab = document.getElementById(`testTab${capitalize(m)}`);
+        if (m === mode) {
+          form.classList.remove('hidden');
+          tab.className = "px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-medium";
+        } else {
+          form.classList.add('hidden');
+          tab.className = "px-3 py-1.5 rounded-lg bg-dark-bg border border-dark-border text-slate-400 font-medium hover:text-white";
+        }
+      });
+      document.getElementById('testerResultBox').classList.add('hidden');
+    }
+
+    function setSampleQuestion(q) {
+      document.getElementById('testQuestionInput').value = q;
+    }
+
+    async function runChatTest() {
+      const qInput = document.getElementById('testQuestionInput');
+      const question = qInput.value.trim();
+      if (!question) return;
+
+      const btn = document.getElementById('btnSendChatTest');
+      btn.disabled = true;
+      btn.innerText = "Sending...";
+
+      const startTime = performance.now();
+      try {
+        const res = await fetch(`${getTargetBaseUrl()}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question })
+        });
+        const duration = Math.round(performance.now() - startTime);
+
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('testerResultBox').classList.remove('hidden');
+          document.getElementById('testerDuration').innerText = `${duration} ms`;
+          document.getElementById('testerAnswerText').innerText = data.answer;
+          document.getElementById('testerAudioPlayerContainer').classList.add('hidden');
+        } else {
+          alert('Error: ' + (await res.text()));
+        }
+      } catch (err) {
+        alert('Request failed: ' + err);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Send";
+      }
+    }
+
+    async function runVoiceTest() {
+      const fileInput = document.getElementById('testVoiceFileInput');
+      if (!fileInput.files || fileInput.files.length === 0) {
+        alert('Please select an audio file first.');
+        return;
+      }
+
+      const btn = document.getElementById('btnSendVoiceTest');
+      btn.disabled = true;
+      btn.innerText = "Processing audio...";
+
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+
+      const startTime = performance.now();
+      try {
+        const res = await fetch(`${getTargetBaseUrl()}/voice/query`, {
+          method: 'POST',
+          body: formData,
+        });
+        const duration = Math.round(performance.now() - startTime);
+
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('testerResultBox').classList.remove('hidden');
+          document.getElementById('testerDuration').innerText = `${duration} ms`;
+          document.getElementById('testerAnswerText').innerText = `Transcript: "${data.transcript}"\n\nAnswer: ${data.answer}`;
+
+          if (data.audio_base64) {
+            const player = document.getElementById('testerAudioPlayer');
+            player.src = `data:audio/mp3;base64,${data.audio_base64}`;
+            document.getElementById('testerAudioPlayerContainer').classList.remove('hidden');
+            player.play().catch(() => {});
+          }
+        } else {
+          alert('Error: ' + (await res.text()));
+        }
+      } catch (err) {
+        alert('Request failed: ' + err);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Upload & Transcribe";
+      }
+    }
+
+    async function runBatchTest() {
+      const rawText = document.getElementById('testBatchInput').value;
+      const questions = rawText.split('\n').map(q => q.trim()).filter(q => q.length > 0);
+      if (questions.length === 0) return;
+
+      const btn = document.getElementById('btnSendBatchTest');
+      btn.disabled = true;
+      btn.innerText = `Running ${questions.length} queries...`;
+
+      const startTime = performance.now();
+      try {
+        const res = await fetch(`${getTargetBaseUrl()}/chat/batch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ questions })
+        });
+        const duration = Math.round(performance.now() - startTime);
+
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('testerResultBox').classList.remove('hidden');
+          document.getElementById('testerDuration').innerText = `${duration} ms (${data.results.length} results)`;
+          const summary = data.results.map((r, i) => `Q${i+1}: ${r.question}\nA: ${r.answer}`).join('\n\n');
+          document.getElementById('testerAnswerText').innerText = summary;
+          document.getElementById('testerAudioPlayerContainer').classList.add('hidden');
+        }
+      } catch (err) {
+        alert('Batch error: ' + err);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Execute Batch";
+      }
+    }
+
+    // Knowledge Base Handlers
+    function openKnowledgeModal() {
+      document.getElementById('knowledgeModal').classList.remove('hidden');
+      fetchKnowledgeBaseInfo();
+    }
+
+    function closeKnowledgeModal() {
+      document.getElementById('knowledgeModal').classList.add('hidden');
+    }
+
+    async function fetchKnowledgeBaseInfo() {
+      try {
+        const res = await fetch(`${getTargetBaseUrl()}/health`);
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('metricKbChunks').innerText = data.index_chunks;
+          document.getElementById('kbModalChunkCount').innerText = `${data.index_chunks} chunks`;
+        }
+        // Fetch docs
+        const docRes = await fetch(`${getTargetBaseUrl()}/api/knowledge-base`);
+        if (docRes.ok) {
+          const info = await docRes.json();
+          const listEl = document.getElementById('kbDocsList');
+          if (info.docs && info.docs.length > 0) {
+            listEl.innerHTML = info.docs.map(d => `
+              <div class="flex items-center justify-between p-2 rounded bg-dark-card border border-dark-border">
+                <span class="font-mono text-slate-200">📄 ${d.filename}</span>
+                <span class="text-slate-500 text-[11px]">${d.size_kb} KB (${d.chunks_approx || 0} chunks)</span>
+              </div>
+            `).join('');
+          } else {
+            listEl.innerHTML = `<p class="text-slate-500">No documents found in data/docs folder.</p>`;
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching KB:', err);
+      }
+    }
+
+    async function triggerIngest() {
+      const btn = document.getElementById('btnIngest');
+      btn.disabled = true;
+      btn.innerHTML = `<span class="animate-spin">⏳</span> Indexing...`;
+
+      try {
+        const res = await fetch(`${getTargetBaseUrl()}/ingest`, { method: 'POST' });
+        if (res.ok) {
+          const stats = await res.json();
+          alert(`RAG Knowledge Re-indexed successfully!\nTotal Chunks: ${stats.chunks_indexed}\nFiles: ${stats.files_processed?.join(', ')}`);
+          fetchKnowledgeBaseInfo();
+        } else {
+          alert('Re-indexing failed: ' + (await res.text()));
+        }
+      } catch (err) {
+        alert('Re-indexing error: ' + err);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<span>⚡ Re-index Knowledge (/ingest)</span>`;
+      }
+    }
+  </script>
+</body>
+</html>

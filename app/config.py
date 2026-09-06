@@ -1,7 +1,10 @@
 import os
+import logging
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = logging.getLogger("config")
 
 
 def _get(name: str, default: str = "") -> str:
@@ -10,8 +13,8 @@ def _get(name: str, default: str = "") -> str:
 
 OPENAI_API_KEY = _get("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
-    raise RuntimeError(
-        "OPENAI_API_KEY is not set. Copy .env.example to .env and add your key."
+    logger.warning(
+        "OPENAI_API_KEY is not set. Monitoring UI will still work, but agent LLM/voice generation calls will require a key."
     )
 
 CHAT_MODEL = _get("CHAT_MODEL", "gpt-4o-mini")

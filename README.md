@@ -1,9 +1,9 @@
-# Headless Voicebot POC (OpenAI Realtime + RAG)
+# Voicebot Agent (OpenAI Realtime + RAG + Live Activity Monitor)
 
-A minimal, hostable, **headless** voicebot you drive entirely via HTTP/WebSocket API —
-no UI required. Built for testing with external tools (batch question runners, etc).
+A hostable voicebot with OpenAI Realtime & RAG integration and a **built-in web UI dashboard** for live session activity monitoring.
 
 ## What's included
+- **Session Activity Web Dashboard** (`/` or `/dashboard`): Real-time visual monitoring of all agent sessions (WebSocket Voice, HTTP Voice, Text Chat, Batch), event timelines, transcripts, RAG context retrievals, and KPI metrics.
 - **RAG**: your domain docs (`data/docs/*.txt|.md|.pdf`) are chunked, embedded with
   OpenAI embeddings, and stored in a local vector index (numpy, no external DB needed).
 - **Text/RAG API** (`/chat`, `/chat/batch`): fastest way to batch-test Q&A accuracy.
@@ -33,22 +33,36 @@ uvicorn app.main:app --reload
 curl -X POST http://localhost:8000/ingest
 ```
 
-Re-run `/ingest` any time you change the docs.
+Re-run `/ingest` any time you change the docs (or click "Re-index Knowledge" directly in the web UI).
 
-## 3. Run the server
+## 3. Run the server & Open Web UI
 
 ```powershell
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-Or with Docker:
+Open your browser at:
+👉 **`http://localhost:8000/`** (or `http://localhost:8000/dashboard`)
 
-```powershell
-docker build -t voicebot-poc .
-docker run -p 8000:8000 --env-file .env voicebot-poc
-```
+### Web UI Features:
+- **Live Metrics**: Active WebSocket sessions, total interactions, RAG searches, average latency, and indexed knowledge chunks.
+- **Session Feed**: Real-time stream of all incoming sessions with instant filtering (by channel type: Live Voice, Voice Query, Text Chat, Batch; and status: Active, Completed, Error).
+- **Detailed Inspector**:
+  - **Timeline View**: Chronological micro-events (Speech transcribed, RAG searches, Function calls, Assistant replies).
+  - **Conversation View**: Clean user & assistant transcript dialogues with expandable knowledge citation tags.
+  - **RAG Context View**: Inspect exact text chunks and similarity scores retrieved from the vector index.
+  - **Raw JSON View**: Full telemetry payload with one-click export.
+- **Interactive Agent Test Runner**: Built-in tester to run live text chats, upload audio queries, execute batch runs, or trigger knowledge base re-indexing directly from the browser.
 
 ## 4. API reference
+
+### UI & Monitoring Endpoints
+- `GET /` or `GET /dashboard`: Web UI Session Activity Dashboard.
+- `GET /api/sessions`: List sessions with optional filters (`limit`, `type`, `status`, `search`).
+- `GET /api/sessions/{session_id}`: Get full event timeline and details for a session.
+- `POST /api/sessions/clear`: Clear session history.
+- `GET /api/stats`: Real-time session and RAG metrics.
+- `WS /ws/monitor`: Real-time live event stream WebSocket for monitoring UIs.
 
 ### `GET /health`
 Quick check + how many chunks are indexed.

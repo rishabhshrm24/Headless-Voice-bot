@@ -10,6 +10,8 @@ _client: OpenAI | None = None
 
 def get_client() -> OpenAI:
     global _client
+    if not config.OPENAI_API_KEY:
+        raise RuntimeError("OPENAI_API_KEY is not configured in environment or .env file.")
     if _client is None:
         _client = OpenAI(api_key=config.OPENAI_API_KEY)
     return _client
