@@ -98,49 +98,116 @@ html, body {
   --orb-level: 0;
 }
 
-/* ElevenLabs-style conic "pinwheel" disc: a repeating conic-gradient
-   wedge pattern (in our own brand colors) plus a soft radial highlight
-   layered on top for a glassy-sphere sheen. Two full color cycles (6
-   wedge boundaries) for a wedge density similar to their orb; the first
-   and last stops match so the wheel wraps seamlessly with no visible
-   seam. Plain CSS, no SVG - inherently crisp/saturated since there's no
-   blur or overlay diluting it. */
-.orb-disc {
+.orb-wrap svg {
   width: 100%;
   height: 100%;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 45%),
-    conic-gradient(
-      from 0deg,
-      #fa8bff 0%,
-      #2bd2ff 16.66%,
-      #2bff88 33.33%,
-      #fa8bff 50%,
-      #2bd2ff 66.66%,
-      #2bff88 83.33%,
-      #fa8bff 100%
-    );
-  box-shadow: 0 0 calc(20px + 60px * var(--orb-level)) var(--orb-glow);
+  filter: drop-shadow(0 0 calc(20px + 60px * var(--orb-level)) var(--orb-glow));
   transform: scale(calc(1 + 0.12 * var(--orb-level)));
-  transition: transform 0.05s linear, box-shadow 0.05s linear, filter 0.2s ease;
+  transition: transform 0.05s linear, filter 0.2s ease;
 }
 
-.orb-wrap[data-state="idle"] .orb-disc {
+.orb-wrap[data-state="idle"] svg {
   animation: orb-breathe 4s ease-in-out infinite;
 }
 
-.orb-wrap[data-state="speaking"] .orb-disc {
-  filter: saturate(1.15) brightness(1.05);
+.orb-wrap[data-state="speaking"] svg {
+  filter: drop-shadow(0 0 calc(20px + 60px * var(--orb-level)) var(--orb-glow)) hue-rotate(18deg) saturate(1.15);
 }
 
-.orb-wrap[data-state="muted"] .orb-disc {
+.orb-wrap[data-state="muted"] svg {
   filter: grayscale(0.6) brightness(0.85);
 }
 
 @keyframes orb-breathe {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.04); }
+}
+
+/* The two swirl lines stay solid and continuous (matching the original
+   logo) - no dash pattern. They still react to live audio amplitude:
+   --orb-level (0..1) tracks live mic input while listening and live bot
+   audio while speaking (set per animation frame in call-app.js), so
+   these thicken/thin in step with whoever is actually talking, like a
+   live audio meter. */
+.orb-wave-line {
+  transition: stroke-width 0.05s linear;
+}
+
+.orb-wave-line-1 {
+  stroke-width: calc(14px + 10px * var(--orb-level));
+}
+
+.orb-wave-line-2 {
+  stroke-width: calc(8.4px + 9px * var(--orb-level));
+}
+
+/* Smoke-like drift for the orb's color/interior, kept strictly to
+   non-geometric or mask-contained motion so nothing can clip past the
+   orb's own boundary or desync from the static outer ring:
+   - orb-smoke-hue: the base gradient fill's hue/saturation/brightness
+     drifts (no shape change at all), giving the color itself a visibly
+     shifting, coiling quality.
+   - orb-smoke-cloud: the highlight blob is blurred into a soft, edgeless
+     haze (not a crisp vector shape) and drifts/rescales with real range -
+     it lives inside the masked #orbFlow group, so it's always clipped to
+     the orb's silhouette even at its largest.
+   - orb-ring: the outer boundary stays a plain solid line (no dashes,
+     per request) but breathes gently in opacity/width, like a soft edge
+     of smoke rather than a rigid outline.
+   All three run on independent, non-round-number durations so they drift
+   in and out of phase with each other instead of looking mechanical. */
+/* Saturation/brightness only - no hue-rotate. Sweeping hue across a
+   3-stop gradient passes through duller in-between colors and was
+   washing out the orb's actual brand colors ("looks blend"). Boosting
+   saturate/brightness keeps the same pink/cyan/green identity, just
+   punchier at its peak - closer to how ElevenLabs/Loom keep their orbs
+   vivid rather than hazy. */
+.orb-smoke-hue {
+  animation: orb-smoke-hue-drift 11s ease-in-out infinite;
+}
+
+@keyframes orb-smoke-hue-drift {
+  0%, 100% { filter: saturate(1) brightness(1); }
+  50% { filter: saturate(1.35) brightness(1.05); }
+}
+
+/* A tight, low-blur glassy highlight (like a specular glint on a sphere)
+   instead of a wide, heavily-blurred haze - adds dimensionality without
+   diluting the gradient's saturation. */
+.orb-smoke-cloud {
+  transform-box: fill-box;
+  transform-origin: center;
+  filter: blur(3px);
+  animation: orb-smoke-cloud-drift 9s ease-in-out infinite;
+}
+
+@keyframes orb-smoke-cloud-drift {
+  0%, 100% { transform: translate(0, 0) rotate(0deg) scale(0.8); opacity: 0.16; }
+  35% { transform: translate(14%, -10%) rotate(10deg) scale(1.05); opacity: 0.26; }
+  70% { transform: translate(-10%, 12%) rotate(-8deg) scale(0.6); opacity: 0.1; }
+}
+
+.orb-ring {
+  animation: orb-ring-breathe 9s ease-in-out infinite;
+}
+
+@keyframes orb-ring-breathe {
+  0%, 100% { opacity: 0.5; stroke-width: 2.8px; }
+  50% { opacity: 0.7; stroke-width: 3.6px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb-smoke-hue,
+  .orb-smoke-cloud,
+  .orb-ring {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb-wrap[data-state="idle"] svg {
+    animation: none;
+  }
 }
 
 .control-pill {
