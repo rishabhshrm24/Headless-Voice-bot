@@ -39,6 +39,29 @@ class CallApp {
     this.transcriptMessages = document.getElementById("transcriptMessages");
     this.feedbackView = document.getElementById("feedbackView");
 
+    // Wrap the feedback form's existing children (rating row, resolved row,
+    // comment box, submit button, etc.) in a dedicated container so the form
+    // can be hidden/shown as a unit without ever destroying its DOM nodes.
+    // This keeps the listeners bound in _bindDrawerControls() valid across
+    // every call, not just the first one.
+    this.feedbackForm = document.createElement("div");
+    this.feedbackForm.className = "feedback-form";
+    while (this.feedbackView.firstChild) {
+      this.feedbackForm.appendChild(this.feedbackView.firstChild);
+    }
+
+    this.feedbackThanks = document.createElement("h3");
+    this.feedbackThanks.textContent = "Thanks for your feedback!";
+    this.feedbackThanks.style.display = "none";
+
+    this.feedbackError = document.createElement("p");
+    this.feedbackError.className = "feedback-error";
+    this.feedbackError.style.display = "none";
+    this.feedbackForm.appendChild(this.feedbackError);
+
+    this.feedbackView.appendChild(this.feedbackForm);
+    this.feedbackView.appendChild(this.feedbackThanks);
+
     this.capture = null;
     this.playback = null;
     this.socket = null;
@@ -135,6 +158,7 @@ class CallApp {
 
     const proto = location.protocol === "https:" ? "wss" : "ws";
     this.socket = new VoiceSocket(`${proto}://${location.host}/ws/voice`);
+    const socket = this.socket;
 
     this.socket.on("session_id", ({ sessionId }) => {
       this.sessionId = sessionId;
@@ -157,7 +181,7 @@ class CallApp {
     });
 
     this.socket.on("close", () => {
-      if (this.controlPill.querySelector(".end-call")) {
+      if (this.socket === socket && this.controlPill.querySelector(".end-call")) {
         this.endCall({ abrupt: true });
       }
     });
@@ -213,6 +237,9 @@ class CallApp {
     this.drawer.dataset.open = "true";
     this.transcriptView.style.display = "none";
     this.feedbackView.style.display = "block";
+    this.feedbackForm.style.display = "block";
+    this.feedbackThanks.style.display = "none";
+    this.feedbackError.style.display = "none";
     this._setStatus(abrupt ? "Call ended unexpectedly" : "Call ended");
   }
 
@@ -239,28 +266,50 @@ class CallApp {
   }
 
   async submitFeedback() {
-    if (!this.sessionId || this.selectedRating === null) return;
+    if (!this.sessionId || this.selectedRating === null || this.selectedResolved === null) return;
 
-    await fetch("/feedback", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        session_id: this.sessionId,
-        rating: this.selectedRating,
-        resolved: this.selectedResolved,
-        comment: document.getElementById("feedbackComment").value || null,
-      }),
-    });
+    this.feedbackError.style.display = "none";
 
-    this.feedbackView.innerHTML = "<h3>Thanks for your feedback!</h3>";
+    let response;
+    try {
+      response = await fetch("/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: this.sessionId,
+          rating: this.selectedRating,
+          resolved: this.selectedResolved,
+          comment: document.getElementById("feedbackComment").value || null,
+        }),
+      });
+    } catch (e) {
+      this.feedbackError.textContent = "Couldn't send feedback. Please try again.";
+      this.feedbackError.style.display = "block";
+      return;
+    }
+
+    if (!response.ok) {
+      this.feedbackError.textContent = "Couldn't send feedback. Please try again.";
+      this.feedbackError.style.display = "block";
+      return;
+    }
+
+    // Reset the form's selection state (without destroying its DOM nodes)
+    // so the same nodes are ready to be shown again after the next call.
+    this.selectedRating = null;
+    this.selectedResolved = null;
+    [...document.querySelectorAll(".rating-option")].forEach((b) => (b.dataset.selected = "false"));
+    [...document.querySelectorAll(".resolved-option")].forEach((b) => (b.dataset.selected = "false"));
+    document.getElementById("feedbackComment").value = "";
+
+    this.feedbackForm.style.display = "none";
+    this.feedbackThanks.style.display = "block";
     this.transcriptMessages.innerHTML = "";
     this.transcriptView.style.display = "block";
     this.feedbackView.style.display = "none";
     this.drawer.dataset.open = "false";
     this._setStatus("Idle");
     this.sessionId = null;
-    this.selectedRating = null;
-    this.selectedResolved = null;
   }
 }
 
