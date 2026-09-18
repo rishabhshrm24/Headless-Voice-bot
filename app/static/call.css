@@ -133,6 +133,19 @@ html, body {
 .orb-wave-line {
   stroke-dasharray: 18 14;
   animation: orb-line-wave 6s linear infinite;
+  transition: stroke-width 0.05s linear;
+}
+
+/* Amplitude reaction: --orb-level (0..1) already tracks live mic input
+   while listening and live bot audio while speaking (set per animation
+   frame in call-app.js), so these thicken/thin in step with whoever is
+   actually talking, like a live audio meter. */
+.orb-wave-line-1 {
+  stroke-width: calc(14px + 10px * var(--orb-level));
+}
+
+.orb-wave-line-2 {
+  stroke-width: calc(8.4px + 9px * var(--orb-level));
 }
 
 .orb-wrap[data-state="listening"] .orb-wave-line {
