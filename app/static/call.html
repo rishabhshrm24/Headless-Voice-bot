@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Talk to Voicebot</title>
+  <link rel="stylesheet" href="/static/call.css" />
+</head>
+<body>
+  <div class="call-shell">
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme" type="button">🌙</button>
+
+    <div class="status-pill" id="statusPill">Idle</div>
+
+    <div class="orb-wrap" id="orbWrap" data-state="idle">
+      <svg width="346" height="346" viewBox="0 0 346 346" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <g filter="url(#filter0_d_719_62)">
+          <rect x="35" y="21" width="276" height="276" rx="138" fill="white"/>
+          <path d="M173 257C227.124 257 271 213.124 271 159C271 104.876 227.124 61 173 61C118.876 61 75 104.876 75 159C75 213.124 118.876 257 173 257Z" fill="url(#paint0_linear_719_62)"/>
+          <mask id="mask0_719_62" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="75" y="61" width="196" height="196">
+            <path d="M173 257C227.124 257 271 213.124 271 159C271 104.876 227.124 61 173 61C118.876 61 75 104.876 75 159C75 213.124 118.876 257 173 257Z" fill="white"/>
+          </mask>
+          <g mask="url(#mask0_719_62)">
+            <path opacity="0.4" d="M61 187.004C107.667 131.004 154.333 131.004 201 187.004C247.667 243.004 285 233.671 313 159.004" stroke="white" stroke-width="14"/>
+            <path opacity="0.6" d="M33 145.006C107.667 201.006 173 196.339 229 131.006C285 65.6723 313 84.339 313 187.006" stroke="white" stroke-width="8.4"/>
+            <path opacity="0.1" d="M135.2 257C189.324 257 233.2 213.124 233.2 159C233.2 104.876 189.324 61 135.2 61C81.076 61 37.2 104.876 37.2 159C37.2 213.124 81.076 257 135.2 257Z" fill="white"/>
+          </g>
+          <path opacity="0.5" d="M173 257C227.124 257 271 213.124 271 159C271 104.876 227.124 61 173 61C118.876 61 75 104.876 75 159C75 213.124 118.876 257 173 257Z" stroke="white" stroke-width="2.8"/>
+        </g>
+        <defs>
+          <filter id="filter0_d_719_62" x="0" y="0" width="346" height="346" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+            <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+            <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+            <feMorphology radius="1.4" operator="dilate" in="SourceAlpha" result="effect1_dropShadow_719_62"/>
+            <feOffset dy="14"/>
+            <feGaussianBlur stdDeviation="16.8"/>
+            <feComposite in2="hardAlpha" operator="out"/>
+            <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.28 0"/>
+            <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_719_62"/>
+            <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_719_62" result="shape"/>
+          </filter>
+          <linearGradient id="paint0_linear_719_62" x1="33" y1="19" x2="313" y2="299" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#FA8BFF"/>
+            <stop offset="0.52" stop-color="#2BD2FF"/>
+            <stop offset="1" stop-color="#2BFF88"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+
+    <div class="control-pill" id="controlPill">
+      <button class="control-btn start-call" id="startCallBtn" type="button">Start Call</button>
+    </div>
+
+    <aside class="drawer" id="drawer" data-open="false">
+      <div class="transcript-view" id="transcriptView">
+        <h3>Transcript</h3>
+        <div id="transcriptMessages"></div>
+      </div>
+      <div class="feedback-view" id="feedbackView" style="display:none">
+        <h3>How was the call?</h3>
+        <div class="rating-row" id="ratingRow">
+          <button class="rating-option" data-value="1" type="button">😞</button>
+          <button class="rating-option" data-value="2" type="button">🙁</button>
+          <button class="rating-option" data-value="3" type="button">😐</button>
+          <button class="rating-option" data-value="4" type="button">🙂</button>
+          <button class="rating-option" data-value="5" type="button">😄</button>
+        </div>
+        <p>Was your issue resolved?</p>
+        <div class="resolved-row" id="resolvedRow">
+          <button class="resolved-option" data-value="true" type="button">Yes</button>
+          <button class="resolved-option" data-value="false" type="button">No</button>
+        </div>
+        <textarea id="feedbackComment" placeholder="Anything else you'd like to add? (optional)"></textarea>
+        <button class="submit-btn" id="submitFeedbackBtn" type="button">Submit</button>
+      </div>
+    </aside>
+  </div>
+
+  <script type="module" src="/static/call/call-app.js"></script>
+</body>
+</html>

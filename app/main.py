@@ -95,6 +95,15 @@ async def dashboard():
     return HTMLResponse("<h2>Voicebot UI is loading...</h2>")
 
 
+@app.get("/call", response_class=HTMLResponse)
+async def call_ui():
+    """Serves the end-user voice call page."""
+    call_html = os.path.join(STATIC_DIR, "call.html")
+    if os.path.exists(call_html):
+        return FileResponse(call_html)
+    return HTMLResponse("<h2>Voice call UI is loading...</h2>")
+
+
 # ==========================================
 # Session Monitoring REST & WebSocket APIs
 # ==========================================
