@@ -164,6 +164,7 @@ async def run_voice_bridge(client_ws: WebSocket, index: RagIndex) -> None:
     ]
 
     tracker.register_voice_socket(session_id, client_ws)
+    await client_ws.send_text(json.dumps({"type": "voicebot.session_id", "session_id": session_id}))
     try:
         async with websockets.connect(
             OPENAI_REALTIME_URL, extra_headers=headers, max_size=None
