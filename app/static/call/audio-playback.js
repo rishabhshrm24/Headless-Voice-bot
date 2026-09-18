@@ -12,6 +12,14 @@ export default class AudioPlayback {
       this.audioContext = new AudioContext({ sampleRate: 24000 });
       this.nextStartTime = this.audioContext.currentTime;
     }
+    // Browsers can hand back (or later suspend) an AudioContext outside a
+    // direct user-gesture call stack — e.g. after the async gap of a mic
+    // permission prompt and a WebSocket handshake. Explicitly resuming is
+    // a harmless no-op when already running, and is required in some
+    // browsers (notably Safari) for the context to ever produce sound.
+    if (this.audioContext.state === "suspended") {
+      this.audioContext.resume().catch(() => {});
+    }
     this._tickLevel();
   }
 

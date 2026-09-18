@@ -160,6 +160,13 @@ class CallApp {
 
     this.capture = new AudioCapture();
     this.playback = new AudioPlayback();
+    // Create (and attempt to resume) the playback AudioContext synchronously
+    // here, still inside the click handler's call stack, rather than after
+    // the mic-permission-prompt/socket-connect awaits below — browsers are
+    // far more willing to let an AudioContext start "running" (instead of
+    // "suspended", which produces no sound) when it's created close to a
+    // real user gesture like this button click.
+    this.playback.start();
 
     // Request the microphone before opening the socket: if the user denies
     // (or capture otherwise fails), we never burn a server session / upstream
@@ -224,7 +231,6 @@ class CallApp {
       return;
     }
 
-    this.playback.start();
     this.playback.onLevel((level) => {
       if (this.muted) {
         // Keep the orb/status pinned to "muted" instead of letting bot
