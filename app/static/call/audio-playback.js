@@ -36,7 +36,13 @@ export default class AudioPlayback {
 
   enqueue(base64Chunk) {
     if (!this.audioContext) return;
-    const pcm16 = this._base64ToPcm16(base64Chunk);
+    let pcm16;
+    try {
+      pcm16 = this._base64ToPcm16(base64Chunk);
+    } catch (e) {
+      console.warn("Dropping malformed audio chunk:", e);
+      return;
+    }
     const float32 = this._pcm16ToFloat32(pcm16);
 
     let sumSquares = 0;

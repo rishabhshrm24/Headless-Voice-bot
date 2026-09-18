@@ -41,9 +41,21 @@ export default class VoiceSocket {
       case "voicebot.session_id":
         this._emit("session_id", { sessionId: data.session_id });
         break;
-      case "response.output_audio.delta":
-        this._emit("audio_delta", { audio: data.audio });
+      case "response.output_audio.delta": {
+        // Docs/reference script say this field is "audio", but that was
+        // never actually exercised end-to-end before — fall back to
+        // "delta" (the field name OpenAI uses on most other streaming
+        // delta events) and log if neither is present, so a mismatch is
+        // diagnosable from the console instead of crashing atob() on
+        // undefined.
+        const audioB64 = data.audio ?? data.delta;
+        if (typeof audioB64 !== "string") {
+          console.warn("response.output_audio.delta had no audio/delta field:", data);
+          break;
+        }
+        this._emit("audio_delta", { audio: audioB64 });
         break;
+      }
       case "response.output_audio_transcript.done":
         this._emit("bot_transcript", { transcript: data.transcript });
         break;
