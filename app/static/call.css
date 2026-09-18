@@ -123,31 +123,31 @@ html, body {
   50% { transform: scale(1.04); }
 }
 
-/* Slow continuous drift of the inner swirl, giving the orb a living,
-   "breathing energy" quality independent of the level-driven pulse above.
+/* Gentle shimmer on the inner swirl strokes, giving the orb a living,
+   "breathing energy" quality independent of the level-driven scale/glow
+   pulse above. Pure opacity/brightness motion - no rotation or position
+   change - so it reads as alive without being disorienting to look at.
    Speed intensifies with engagement (idle -> listening -> speaking) and
    freezes while muted, so the motion itself carries state meaning. */
 #orbFlow {
-  transform-box: view-box;
-  transform-origin: 99.4px 99.4px;
-  animation: orb-flow-spin 70s linear infinite;
+  animation: orb-flow-shimmer 6s ease-in-out infinite;
 }
 
 .orb-wrap[data-state="listening"] #orbFlow {
-  animation-duration: 32s;
+  animation-duration: 3.2s;
 }
 
 .orb-wrap[data-state="speaking"] #orbFlow {
-  animation-duration: 14s;
+  animation-duration: 1.8s;
 }
 
 .orb-wrap[data-state="muted"] #orbFlow {
   animation-play-state: paused;
 }
 
-@keyframes orb-flow-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+@keyframes orb-flow-shimmer {
+  0%, 100% { opacity: 0.85; filter: brightness(1); }
+  50% { opacity: 1; filter: brightness(1.12); }
 }
 
 @media (prefers-reduced-motion: reduce) {
