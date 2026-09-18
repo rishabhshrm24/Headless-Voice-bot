@@ -123,35 +123,36 @@ html, body {
   50% { transform: scale(1.04); }
 }
 
-/* Gentle shimmer on the inner swirl strokes, giving the orb a living,
-   "breathing energy" quality independent of the level-driven scale/glow
-   pulse above. Pure opacity/brightness motion - no rotation or position
-   change - so it reads as alive without being disorienting to look at.
-   Speed intensifies with engagement (idle -> listening -> speaking) and
-   freezes while muted, so the motion itself carries state meaning. */
-#orbFlow {
-  animation: orb-flow-shimmer 6s ease-in-out infinite;
+/* The two swirl lines flow along their own curve like a traveling wave -
+   a dash pattern sliding via stroke-dashoffset, not any rotation or
+   position change of the shape itself, so it can't be disorienting to
+   look at. Dash period is 18+14=32, and the animation travels exactly
+   two periods (-64), so the loop is seamless. Speed intensifies with
+   engagement (idle -> listening -> speaking) and freezes while muted,
+   so the motion itself carries state meaning. */
+.orb-wave-line {
+  stroke-dasharray: 18 14;
+  animation: orb-line-wave 6s linear infinite;
 }
 
-.orb-wrap[data-state="listening"] #orbFlow {
-  animation-duration: 3.2s;
+.orb-wrap[data-state="listening"] .orb-wave-line {
+  animation-duration: 3s;
 }
 
-.orb-wrap[data-state="speaking"] #orbFlow {
-  animation-duration: 1.8s;
+.orb-wrap[data-state="speaking"] .orb-wave-line {
+  animation-duration: 1.6s;
 }
 
-.orb-wrap[data-state="muted"] #orbFlow {
+.orb-wrap[data-state="muted"] .orb-wave-line {
   animation-play-state: paused;
 }
 
-@keyframes orb-flow-shimmer {
-  0%, 100% { opacity: 0.85; filter: brightness(1); }
-  50% { opacity: 1; filter: brightness(1.12); }
+@keyframes orb-line-wave {
+  to { stroke-dashoffset: -64; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  #orbFlow {
+  .orb-wave-line {
     animation: none;
   }
   .orb-wrap[data-state="idle"] svg {
