@@ -103,11 +103,15 @@ html, body {
   height: 100%;
   filter: drop-shadow(0 0 calc(20px + 60px * var(--orb-level)) var(--orb-glow));
   transform: scale(calc(1 + 0.12 * var(--orb-level)));
-  transition: transform 0.05s linear, filter 0.05s linear;
+  transition: transform 0.05s linear, filter 0.2s ease;
 }
 
 .orb-wrap[data-state="idle"] svg {
   animation: orb-breathe 4s ease-in-out infinite;
+}
+
+.orb-wrap[data-state="speaking"] svg {
+  filter: drop-shadow(0 0 calc(20px + 60px * var(--orb-level)) var(--orb-glow)) hue-rotate(18deg) saturate(1.15);
 }
 
 .orb-wrap[data-state="muted"] svg {
@@ -117,6 +121,42 @@ html, body {
 @keyframes orb-breathe {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.04); }
+}
+
+/* Slow continuous drift of the inner swirl, giving the orb a living,
+   "breathing energy" quality independent of the level-driven pulse above.
+   Speed intensifies with engagement (idle -> listening -> speaking) and
+   freezes while muted, so the motion itself carries state meaning. */
+#orbFlow {
+  transform-box: view-box;
+  transform-origin: 99.4px 99.4px;
+  animation: orb-flow-spin 70s linear infinite;
+}
+
+.orb-wrap[data-state="listening"] #orbFlow {
+  animation-duration: 32s;
+}
+
+.orb-wrap[data-state="speaking"] #orbFlow {
+  animation-duration: 14s;
+}
+
+.orb-wrap[data-state="muted"] #orbFlow {
+  animation-play-state: paused;
+}
+
+@keyframes orb-flow-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #orbFlow {
+    animation: none;
+  }
+  .orb-wrap[data-state="idle"] svg {
+    animation: none;
+  }
 }
 
 .control-pill {
