@@ -1,8 +1,26 @@
 // Runs on the audio rendering thread. Receives Float32 frames at the
 // context's native sample rate, downsamples to 24000 Hz mono, converts to
-// PCM16, and posts ~100ms chunks back to the main thread as base64 strings
-// via a small side-channel (base64 encoding done in-worklet since atob/btoa
-// are available in AudioWorkletGlobalScope).
+// PCM16, and posts ~100ms chunks back to the main thread as base64 strings.
+// btoa/atob are NOT available in AudioWorkletGlobalScope (unlike Window or
+// DedicatedWorkerGlobalScope), so base64 encoding is done manually below.
+const BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+function uint8ToBase64(bytes) {
+  let result = "";
+  const len = bytes.length;
+  for (let i = 0; i < len; i += 3) {
+    const b1 = bytes[i];
+    const b2 = i + 1 < len ? bytes[i + 1] : 0;
+    const b3 = i + 2 < len ? bytes[i + 2] : 0;
+    const triplet = (b1 << 16) | (b2 << 8) | b3;
+    result += BASE64_CHARS[(triplet >> 18) & 0x3f];
+    result += BASE64_CHARS[(triplet >> 12) & 0x3f];
+    result += i + 1 < len ? BASE64_CHARS[(triplet >> 6) & 0x3f] : "=";
+    result += i + 2 < len ? BASE64_CHARS[triplet & 0x3f] : "=";
+  }
+  return result;
+}
+
 class CaptureProcessor extends AudioWorkletProcessor {
   constructor(options) {
     super();
@@ -58,12 +76,7 @@ class CaptureProcessor extends AudioWorkletProcessor {
   }
 
   _pcm16ToBase64(pcm16) {
-    const bytes = new Uint8Array(pcm16.buffer);
-    let binary = "";
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    return btoa(binary);
+    return uint8ToBase64(new Uint8Array(pcm16.buffer));
   }
 
   process(inputs) {
