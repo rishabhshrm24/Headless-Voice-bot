@@ -156,26 +156,35 @@ html, body {
      of smoke rather than a rigid outline.
    All three run on independent, non-round-number durations so they drift
    in and out of phase with each other instead of looking mechanical. */
+/* Saturation/brightness only - no hue-rotate. Sweeping hue across a
+   3-stop gradient passes through duller in-between colors and was
+   washing out the orb's actual brand colors ("looks blend"). Boosting
+   saturate/brightness keeps the same pink/cyan/green identity, just
+   punchier at its peak - closer to how ElevenLabs/Loom keep their orbs
+   vivid rather than hazy. */
 .orb-smoke-hue {
   animation: orb-smoke-hue-drift 11s ease-in-out infinite;
 }
 
 @keyframes orb-smoke-hue-drift {
-  0%, 100% { filter: hue-rotate(0deg) saturate(1) brightness(1); }
-  50% { filter: hue-rotate(32deg) saturate(1.2) brightness(1.08); }
+  0%, 100% { filter: saturate(1) brightness(1); }
+  50% { filter: saturate(1.35) brightness(1.05); }
 }
 
+/* A tight, low-blur glassy highlight (like a specular glint on a sphere)
+   instead of a wide, heavily-blurred haze - adds dimensionality without
+   diluting the gradient's saturation. */
 .orb-smoke-cloud {
   transform-box: fill-box;
   transform-origin: center;
-  filter: blur(10px);
+  filter: blur(3px);
   animation: orb-smoke-cloud-drift 9s ease-in-out infinite;
 }
 
 @keyframes orb-smoke-cloud-drift {
-  0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 0.22; }
-  35% { transform: translate(16%, -12%) rotate(12deg) scale(1.4); opacity: 0.38; }
-  70% { transform: translate(-12%, 14%) rotate(-10deg) scale(0.75); opacity: 0.16; }
+  0%, 100% { transform: translate(0, 0) rotate(0deg) scale(0.8); opacity: 0.16; }
+  35% { transform: translate(14%, -10%) rotate(10deg) scale(1.05); opacity: 0.26; }
+  70% { transform: translate(-10%, 12%) rotate(-8deg) scale(0.6); opacity: 0.1; }
 }
 
 .orb-ring {
