@@ -64,6 +64,13 @@ class BatchChatRequest(BaseModel):
     questions: list[str]
 
 
+class FeedbackRequest(BaseModel):
+    session_id: str
+    rating: int
+    resolved: bool
+    comment: Optional[str] = None
+
+
 class OpenAIChatMessage(BaseModel):
     role: str
     content: str
@@ -158,6 +165,25 @@ def get_knowledge_base_info():
         "docs": docs,
         "total_chunks": 0 if _index.is_empty else len(_index.texts),
     }
+
+
+# ==========================================
+# Feedback
+# ==========================================
+
+@app.post("/feedback", responses={404: {"description": "Session not found"}})
+def submit_feedback(req: FeedbackRequest):
+    """Record end-of-call rating/feedback against the originating voice session."""
+    session = tracker.get_session(req.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    tracker.record_event(
+        req.session_id,
+        "feedback",
+        "User feedback submitted",
+        {"rating": req.rating, "resolved": req.resolved, "comment": req.comment},
+    )
+    return {"status": "ok"}
 
 
 @app.websocket("/ws/monitor")
