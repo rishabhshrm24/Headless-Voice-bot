@@ -123,45 +123,22 @@ html, body {
   50% { transform: scale(1.04); }
 }
 
-/* The two swirl lines flow along their own curve like a traveling wave -
-   a dash pattern sliding via stroke-dashoffset, not any rotation or
-   position change of the shape itself, so it can't be disorienting to
-   look at. Dash period is 18+14=32, and the animation travels exactly
-   two periods (-64), so the loop is seamless. Speed intensifies with
-   engagement (idle -> listening -> speaking) and freezes while muted,
-   so the motion itself carries state meaning. */
+/* The two swirl lines stay solid and continuous (matching the original
+   logo) - no dash pattern. They still react to live audio amplitude:
+   --orb-level (0..1) tracks live mic input while listening and live bot
+   audio while speaking (set per animation frame in call-app.js), so
+   these thicken/thin in step with whoever is actually talking, like a
+   live audio meter. */
 .orb-wave-line {
-  stroke-dasharray: 18 14;
-  animation: orb-line-wave 6s linear infinite;
   transition: stroke-width 0.05s linear;
 }
 
-/* Amplitude reaction: --orb-level (0..1) already tracks live mic input
-   while listening and live bot audio while speaking (set per animation
-   frame in call-app.js), so these thicken/thin in step with whoever is
-   actually talking, like a live audio meter. */
 .orb-wave-line-1 {
   stroke-width: calc(14px + 10px * var(--orb-level));
 }
 
 .orb-wave-line-2 {
   stroke-width: calc(8.4px + 9px * var(--orb-level));
-}
-
-.orb-wrap[data-state="listening"] .orb-wave-line {
-  animation-duration: 3s;
-}
-
-.orb-wrap[data-state="speaking"] .orb-wave-line {
-  animation-duration: 1.6s;
-}
-
-.orb-wrap[data-state="muted"] .orb-wave-line {
-  animation-play-state: paused;
-}
-
-@keyframes orb-line-wave {
-  to { stroke-dashoffset: -64; }
 }
 
 /* Smoke-like drift for the orb's color/interior, kept strictly to
@@ -217,9 +194,6 @@ html, body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .orb-wave-line {
-    animation: none;
-  }
   .orb-wrap[data-state="idle"] svg {
     animation: none;
   }
