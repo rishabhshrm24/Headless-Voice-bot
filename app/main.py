@@ -6,7 +6,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, WebSocket, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app import config
 from app.rag_store import build_index, load_index, RagIndex
@@ -66,9 +66,9 @@ class BatchChatRequest(BaseModel):
 
 class FeedbackRequest(BaseModel):
     session_id: str
-    rating: int
+    rating: int = Field(ge=1, le=5)
     resolved: bool
-    comment: Optional[str] = None
+    comment: Optional[str] = Field(default=None, max_length=2000)
 
 
 class OpenAIChatMessage(BaseModel):
@@ -181,7 +181,7 @@ def get_knowledge_base_info():
 # ==========================================
 
 @app.post("/feedback", responses={404: {"description": "Session not found"}})
-def submit_feedback(req: FeedbackRequest):
+async def submit_feedback(req: FeedbackRequest):
     """Record end-of-call rating/feedback against the originating voice session."""
     session = tracker.get_session(req.session_id)
     if not session:

@@ -93,7 +93,8 @@ class Session:
         event = SessionEvent(event_type=event_type, title=title, details=details)
         self.events.append(event)
         self._update_stats_for_event(event_type, event.details)
-        self.duration_seconds = round(time.time() - self.started_at, 2)
+        if self.status == "active":
+            self.duration_seconds = round(time.time() - self.started_at, 2)
         return event
 
     def end(self, status: str = "completed", error: Optional[str] = None):

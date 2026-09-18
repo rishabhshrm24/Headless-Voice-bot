@@ -69,6 +69,7 @@ class CallApp {
     this.muted = false;
     this.selectedRating = null;
     this.selectedResolved = null;
+    this.state = "idle"; // "idle" | "connecting" | "active" | "ended"
 
     this._bindStartButton();
     this._bindDrawerControls();
@@ -150,11 +151,38 @@ class CallApp {
   }
 
   async startCall() {
+    if (this.state !== "idle") return;
+
+    this._resetDrawer();
+    this.state = "connecting";
     this._setStatus("Connecting…");
     this.orb.setState("idle");
 
     this.capture = new AudioCapture();
     this.playback = new AudioPlayback();
+
+    // Request the microphone before opening the socket: if the user denies
+    // (or capture otherwise fails), we never burn a server session / upstream
+    // OpenAI Realtime connection.
+    try {
+      await this.capture.start({
+        onChunk: (base64) => {
+          if (this.socket) this.socket.sendAudioChunk(base64);
+        },
+        onLevel: (level) => {
+          if (!this.muted) this.orb.setLevel(level);
+        },
+      });
+    } catch (e) {
+      this.state = "idle";
+      if (e && e.name === "NotAllowedError") {
+        this._setStatus("Microphone permission denied");
+      } else {
+        this._setStatus("Could not access microphone");
+      }
+      this._renderIdleControls();
+      return;
+    }
 
     const proto = location.protocol === "https:" ? "wss" : "ws";
     this.socket = new VoiceSocket(`${proto}://${location.host}/ws/voice`);
@@ -181,7 +209,7 @@ class CallApp {
     });
 
     this.socket.on("close", () => {
-      if (this.socket === socket && this.controlPill.querySelector(".end-call")) {
+      if (this.socket === socket && (this.state === "connecting" || this.state === "active")) {
         this.endCall({ abrupt: true });
       }
     });
@@ -189,35 +217,31 @@ class CallApp {
     try {
       await this.socket.connect();
     } catch (e) {
+      this.state = "idle";
       this._setStatus("Connection failed");
-      this._renderIdleControls();
-      return;
-    }
-
-    try {
-      await this.capture.start({
-        onChunk: (base64) => this.socket.sendAudioChunk(base64),
-        onLevel: (level) => {
-          if (!this.muted) this.orb.setLevel(level);
-        },
-      });
-    } catch (e) {
-      this._setStatus("Microphone permission denied");
-      this.socket.close();
+      this.capture.stop();
       this._renderIdleControls();
       return;
     }
 
     this.playback.start();
     this.playback.onLevel((level) => {
+      if (this.muted) {
+        // Keep the orb/status pinned to "muted" instead of letting bot
+        // playback level drag it back into a speaking/listening state.
+        this.orb.setState("muted");
+        this.orb.setLevel(0);
+        return;
+      }
       if (level > 0.02) {
         this.orb.setState("speaking");
         this.orb.setLevel(level);
-      } else if (!this.muted) {
+      } else {
         this.orb.setState("listening");
       }
     });
 
+    this.state = "active";
     this._setStatus("Listening");
     this.orb.setState("listening");
     this._renderActiveControls();
@@ -230,6 +254,7 @@ class CallApp {
     if (this.playback) this.playback.stop();
     if (this.socket) this.socket.close();
 
+    this.state = "ended";
     this.orb.setState("idle");
     this.orb.setLevel(0);
     this._renderIdleControls();
@@ -241,6 +266,33 @@ class CallApp {
     this.feedbackThanks.style.display = "none";
     this.feedbackError.style.display = "none";
     this._setStatus(abrupt ? "Call ended unexpectedly" : "Call ended");
+  }
+
+  // Returns the drawer/feedback UI to a clean baseline: transcript view
+  // showing, feedback view hidden, and any stale rating/resolved selections
+  // or comment text cleared. Called at the top of startCall() (so a new call
+  // never inherits a previous call's feedback state) and by skipFeedback().
+  _resetDrawer() {
+    this.drawer.dataset.open = "false";
+    this.transcriptView.style.display = "block";
+    this.feedbackView.style.display = "none";
+    this.feedbackForm.style.display = "block";
+    this.feedbackThanks.style.display = "none";
+    this.feedbackError.style.display = "none";
+
+    this.selectedRating = null;
+    this.selectedResolved = null;
+    [...document.querySelectorAll(".rating-option")].forEach((b) => (b.dataset.selected = "false"));
+    [...document.querySelectorAll(".resolved-option")].forEach((b) => (b.dataset.selected = "false"));
+    const commentEl = document.getElementById("feedbackComment");
+    if (commentEl) commentEl.value = "";
+  }
+
+  skipFeedback() {
+    this._resetDrawer();
+    this.sessionId = null;
+    this.state = "idle";
+    this._setStatus("Idle");
   }
 
   _bindDrawerControls() {
@@ -263,6 +315,9 @@ class CallApp {
     });
 
     document.getElementById("submitFeedbackBtn").addEventListener("click", () => this.submitFeedback());
+
+    const skipBtn = document.getElementById("skipFeedbackBtn");
+    if (skipBtn) skipBtn.addEventListener("click", () => this.skipFeedback());
   }
 
   async submitFeedback() {
@@ -294,22 +349,19 @@ class CallApp {
       return;
     }
 
-    // Reset the form's selection state (without destroying its DOM nodes)
-    // so the same nodes are ready to be shown again after the next call.
-    this.selectedRating = null;
-    this.selectedResolved = null;
-    [...document.querySelectorAll(".rating-option")].forEach((b) => (b.dataset.selected = "false"));
-    [...document.querySelectorAll(".resolved-option")].forEach((b) => (b.dataset.selected = "false"));
-    document.getElementById("feedbackComment").value = "";
-
     this.feedbackForm.style.display = "none";
     this.feedbackThanks.style.display = "block";
     this.transcriptMessages.innerHTML = "";
-    this.transcriptView.style.display = "block";
-    this.feedbackView.style.display = "none";
-    this.drawer.dataset.open = "false";
-    this._setStatus("Idle");
     this.sessionId = null;
+    this.state = "idle";
+
+    // Keep the drawer open showing the thank-you message briefly so the user
+    // actually sees it, then reset everything (form selections, comment
+    // text, transcript/feedback view visibility) and close the drawer.
+    setTimeout(() => {
+      this._resetDrawer();
+      this._setStatus("Idle");
+    }, 1500);
   }
 }
 

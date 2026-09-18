@@ -12,20 +12,40 @@ class CaptureProcessor extends AudioWorkletProcessor {
     this.buffer = [];
     this.samplesPerChunk = Math.round(this.targetRate * 0.1); // 100ms
     this.resampleAccumulator = [];
+
+    // Persistent state for the linear-interpolation downsampler so the
+    // fractional read position (and the one sample of lookback interpolation
+    // needs across a block boundary) survives across process() calls instead
+    // of resetting every ~128-sample block. Without this, non-integer ratios
+    // (e.g. 44100/24000) produce a discontinuity at every block boundary.
+    this._carry = new Float32Array(1); // last raw input sample from the previous block
+    this._phase = 0; // fractional position (in carry+block coords) of the next output sample
   }
 
-  // Simple linear-interpolation downsampler.
+  // Linear-interpolation downsampler with persistent fractional phase across
+  // process() calls (see constructor comment).
   _downsample(float32Input) {
-    const outLength = Math.floor(float32Input.length / this.ratio);
-    const out = new Float32Array(outLength);
-    for (let i = 0; i < outLength; i++) {
-      const srcIndex = i * this.ratio;
-      const i0 = Math.floor(srcIndex);
-      const i1 = Math.min(i0 + 1, float32Input.length - 1);
-      const frac = srcIndex - i0;
-      out[i] = float32Input[i0] * (1 - frac) + float32Input[i1] * frac;
+    const buf = new Float32Array(1 + float32Input.length);
+    buf[0] = this._carry[0];
+    buf.set(float32Input, 1);
+
+    const out = [];
+    let pos = this._phase;
+    while (pos + 1 < buf.length) {
+      const i0 = Math.floor(pos);
+      const i1 = i0 + 1;
+      const frac = pos - i0;
+      out.push(buf[i0] * (1 - frac) + buf[i1] * frac);
+      pos += this.ratio;
     }
-    return out;
+
+    // Carry the last raw sample of this block forward, and re-express the
+    // leftover fractional phase relative to that carried sample so the next
+    // call picks up exactly where this one left off.
+    this._carry[0] = buf[buf.length - 1];
+    this._phase = pos - (buf.length - 1);
+
+    return Float32Array.from(out);
   }
 
   _floatToPcm16(float32) {

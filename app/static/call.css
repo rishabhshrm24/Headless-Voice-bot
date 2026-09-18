@@ -273,3 +273,22 @@ html, body {
   font-weight: 600;
   cursor: pointer;
 }
+
+.feedback-error {
+  color: var(--danger);
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.feedback-view .skip-btn {
+  margin-top: 8px;
+  width: 100%;
+  padding: 8px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+}

@@ -29,8 +29,15 @@ class FakeWebSocket:
 async def test_sends_session_id_event_before_openai_connect(monkeypatch):
     fake_ws = FakeWebSocket()
 
-    async def fake_connect(*args, **kwargs):
-        raise RuntimeError("stop after session id is sent")
+    class _FailingConnect:
+        async def __aenter__(self):
+            raise RuntimeError("stop after session id is sent")
+
+        async def __aexit__(self, *args):
+            pass
+
+    def fake_connect(*args, **kwargs):
+        return _FailingConnect()
 
     monkeypatch.setattr(realtime_bridge.websockets, "connect", fake_connect)
 

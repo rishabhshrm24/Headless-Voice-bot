@@ -1,3 +1,5 @@
+import time
+
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -53,3 +55,41 @@ def test_feedback_404s_for_unknown_session():
     })
 
     assert resp.status_code == 404
+
+
+def test_feedback_rejects_rating_out_of_range():
+    session = tracker.create_session(session_type="websocket_voice", summary="test call 3")
+    client = TestClient(app)
+
+    too_low = client.post("/feedback", json={
+        "session_id": session.id,
+        "rating": 0,
+        "resolved": True,
+    })
+    too_high = client.post("/feedback", json={
+        "session_id": session.id,
+        "rating": 6,
+        "resolved": True,
+    })
+
+    assert too_low.status_code == 422
+    assert too_high.status_code == 422
+
+
+def test_feedback_after_session_end_does_not_change_duration():
+    session = tracker.create_session(session_type="websocket_voice", summary="test call 4")
+    time.sleep(0.05)
+    tracker.end_session(session.id, status="completed")
+    ended_duration = tracker.get_session(session.id).duration_seconds
+
+    time.sleep(0.05)
+    client = TestClient(app)
+    resp = client.post("/feedback", json={
+        "session_id": session.id,
+        "rating": 5,
+        "resolved": True,
+        "comment": "posted after the call ended",
+    })
+
+    assert resp.status_code == 200
+    assert tracker.get_session(session.id).duration_seconds == ended_duration
