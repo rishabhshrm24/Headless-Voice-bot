@@ -53,11 +53,15 @@ export default class VoiceSocket {
           console.warn("response.output_audio.delta had no audio/delta field:", data);
           break;
         }
-        this._emit("audio_delta", { audio: audioB64 });
+        this._emit("audio_delta", { audio: audioB64, itemId: data.item_id ?? null });
         break;
       }
+      case "input_audio_buffer.speech_started":
+        // Server-side VAD heard the caller start talking (barge-in cue).
+        this._emit("speech_started", {});
+        break;
       case "response.output_audio_transcript.done":
-        this._emit("bot_transcript", { transcript: data.transcript });
+        this._emit("bot_transcript", { transcript: data.transcript, itemId: data.item_id ?? null });
         break;
       case "conversation.item.input_audio_transcription.completed":
         this._emit("user_transcript", { transcript: data.transcript });
@@ -73,6 +77,12 @@ export default class VoiceSocket {
   sendAudioChunk(base64Pcm16) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     this.ws.send(JSON.stringify({ type: "input_audio_buffer.append", audio: base64Pcm16 }));
+  }
+
+  // Send an arbitrary client event (e.g. conversation.item.truncate).
+  sendEvent(event) {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    this.ws.send(JSON.stringify(event));
   }
 
   close() {

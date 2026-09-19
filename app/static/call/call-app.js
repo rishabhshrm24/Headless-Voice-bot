@@ -108,6 +108,7 @@ class CallApp {
     this.callStartedAt = 0;
     this.speaking = false;
     this._lastSpokeAt = -Infinity;
+    this._interruptedItems = new Set();
 
     this._renderIdleControls();
     this._bindDrawerControls();
@@ -214,6 +215,38 @@ class CallApp {
     this.controlPill.appendChild(btn);
   }
 
+  // The caller started talking while the bot was still speaking: cut the
+  // bot off right away. The server's VAD cancels/ignores the rest of the
+  // reply on its side, but the audio already queued in the browser would
+  // otherwise play to the end - so stop it here, and tell the server how
+  // much was actually heard so the conversation history matches.
+  _handleBargeIn() {
+    if (this.state !== "active" || !this.playback) return;
+
+    const info = this.playback.flush();
+    if (!info) return; // bot wasn't speaking; this is just the caller talking
+
+    if (info.itemId) {
+      this._interruptedItems.add(info.itemId);
+      if (this.socket) {
+        this.socket.sendEvent({
+          type: "conversation.item.truncate",
+          item_id: info.itemId,
+          content_index: 0,
+          audio_end_ms: info.playedMs,
+        });
+      }
+    }
+
+    // Drop out of "Speaking" immediately instead of waiting out the hold.
+    this._lastSpokeAt = -Infinity;
+    if (!this.muted) {
+      this.speaking = false;
+      this.orb.setState("listening");
+      this._setStatus("Listening", "listening", true);
+    }
+  }
+
   toggleDrawer() {
     const open = this.drawer.dataset.open === "true";
     this.drawer.dataset.open = (!open).toString();
@@ -264,6 +297,7 @@ class CallApp {
     this._clearTimer();
     this.speaking = false;
     this._lastSpokeAt = -Infinity;
+    this._interruptedItems = new Set();
     this.muted = false;
     this._setStatus("Connecting", "connecting", true);
     this._setCaption("Getting things ready…");
@@ -313,12 +347,17 @@ class CallApp {
       this.sessionId = sessionId;
     });
 
-    this.socket.on("audio_delta", ({ audio }) => {
-      this.playback.enqueue(audio);
+    this.socket.on("audio_delta", ({ audio, itemId }) => {
+      // Audio still in flight from a reply the caller already cut off.
+      if (itemId && this._interruptedItems.has(itemId)) return;
+      this.playback.enqueue(audio, itemId);
     });
 
-    this.socket.on("bot_transcript", ({ transcript }) => {
-      this.appendTranscriptMessage("Bot", transcript);
+    this.socket.on("speech_started", () => this._handleBargeIn());
+
+    this.socket.on("bot_transcript", ({ transcript, itemId }) => {
+      const cutOff = itemId && this._interruptedItems.has(itemId);
+      this.appendTranscriptMessage("Bot", cutOff ? `${transcript} (interrupted)` : transcript);
     });
 
     this.socket.on("user_transcript", ({ transcript }) => {

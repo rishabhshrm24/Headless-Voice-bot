@@ -5,6 +5,14 @@ export default class AudioPlayback {
     this._levelCallback = null;
     this._currentLevel = 0;
     this._rafId = null;
+    // Every scheduled-but-not-finished source, so a barge-in can cancel
+    // audio that is already queued in the browser (the model generates
+    // speech much faster than real time, so most of a reply is queued here
+    // long before it is heard).
+    this._sources = new Set();
+    // The bot item currently being played: { id, startAt, endAt } in
+    // AudioContext time, used to report how much was actually heard.
+    this._item = null;
   }
 
   start() {
@@ -42,7 +50,7 @@ export default class AudioPlayback {
     return float32;
   }
 
-  enqueue(base64Chunk) {
+  enqueue(base64Chunk, itemId = null) {
     if (!this.audioContext) return;
     let pcm16;
     try {
@@ -69,11 +77,51 @@ export default class AudioPlayback {
     source.start(startAt);
     this.nextStartTime = startAt + buffer.duration;
 
+    if (itemId && (!this._item || this._item.id !== itemId)) {
+      this._item = { id: itemId, startAt, endAt: startAt };
+    }
+    if (this._item && (!itemId || this._item.id === itemId)) {
+      this._item.endAt = this.nextStartTime;
+    }
+
+    this._sources.add(source);
     source.onended = () => {
+      this._sources.delete(source);
       if (this.audioContext && this.audioContext.currentTime >= this.nextStartTime - 0.01) {
         this._currentLevel = 0;
       }
     };
+  }
+
+  // True while any bot audio is playing or still queued to play.
+  isPlaying() {
+    return this._sources.size > 0;
+  }
+
+  // Barge-in: immediately stop everything playing/queued. Returns null if
+  // nothing was playing, otherwise { itemId, playedMs } - how much of the
+  // current bot item was actually heard, for conversation.item.truncate.
+  flush() {
+    if (!this.audioContext || this._sources.size === 0) return null;
+
+    const now = this.audioContext.currentTime;
+    let info = { itemId: null, playedMs: 0 };
+    if (this._item) {
+      const total = Math.max(0, this._item.endAt - this._item.startAt);
+      const played = Math.min(Math.max(0, now - this._item.startAt), total);
+      info = { itemId: this._item.id, playedMs: Math.floor(played * 1000) };
+    }
+
+    for (const source of this._sources) {
+      source.onended = null;
+      try { source.stop(); } catch (e) { /* already stopped */ }
+      try { source.disconnect(); } catch (e) { /* already disconnected */ }
+    }
+    this._sources.clear();
+    this.nextStartTime = now;
+    this._currentLevel = 0;
+    this._item = null;
+    return info;
   }
 
   _tickLevel() {
@@ -89,5 +137,7 @@ export default class AudioPlayback {
     this.audioContext = null;
     this.nextStartTime = 0;
     this._currentLevel = 0;
+    this._sources.clear();
+    this._item = null;
   }
 }

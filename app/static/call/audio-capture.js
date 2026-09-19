@@ -15,7 +15,12 @@ export default class AudioCapture {
       this._onChunk = onChunk;
       this._onLevel = onLevel;
 
-      this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.mediaStream = await navigator.mediaDevices.getUserMedia({
+        // Barge-in relies on the server hearing only the caller. Without
+        // echo cancellation the bot's own voice from the speakers would be
+        // picked up and interrupt itself.
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      });
       this.audioContext = new AudioContext();
       await this.audioContext.audioWorklet.addModule("/static/call/audio-worklet-capture.js");
 
