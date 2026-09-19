@@ -10,7 +10,20 @@
   <div class="call-shell">
     <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme" type="button">🌙</button>
 
-    <div class="status-pill" id="statusPill">Idle</div>
+    <div class="agent-id">
+      <span class="agent-avatar" aria-hidden="true"></span>
+      <span class="agent-meta">
+        <span class="agent-name">Voicebot</span>
+        <span class="agent-role">AI assistant</span>
+      </span>
+    </div>
+
+    <output class="status-pill" id="statusPill" data-tone="idle">
+      <span class="status-dot" aria-hidden="true"></span>
+      <span class="status-text" id="statusText">Idle</span>
+      <span class="status-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span class="status-timer" id="statusTimer"></span>
+    </output>
 
     <div class="orb-wrap" id="orbWrap" data-state="idle">
       <svg width="199" height="199" viewBox="0 0 199 199" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -33,6 +46,11 @@
         </defs>
       </svg>
     </div>
+
+    <p class="caption" id="caption" aria-live="polite" data-empty="true">
+      <span class="caption-role" id="captionRole"></span>
+      <span class="caption-text" id="captionText">Tap Start call to talk to the assistant</span>
+    </p>
 
     <div class="control-pill" id="controlPill">
       <button class="control-btn start-call" id="startCallBtn" type="button">Start Call</button>
@@ -57,7 +75,7 @@
           <button class="resolved-option" data-value="true" type="button">Yes</button>
           <button class="resolved-option" data-value="false" type="button">No</button>
         </div>
-        <textarea id="feedbackComment" placeholder="Anything else you'd like to add? (optional)"></textarea>
+        <textarea id="feedbackComment" aria-label="Additional feedback" placeholder="Anything else you'd like to add? (optional)"></textarea>
         <button class="submit-btn" id="submitFeedbackBtn" type="button">Submit</button>
         <button class="skip-btn" id="skipFeedbackBtn" type="button">Skip</button>
       </div>

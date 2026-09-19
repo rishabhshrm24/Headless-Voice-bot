@@ -130,9 +130,60 @@ html, body {
   font-size: 18px;
 }
 
+.theme-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
+.agent-id {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.agent-avatar {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #fa8bff 0%, #2bd2ff 52%, #2bff88 100%);
+  box-shadow: 0 0 0 2px var(--surface), 0 4px 16px var(--orb-glow);
+}
+
+.agent-avatar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.6), transparent 55%);
+}
+
+.agent-meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.agent-name {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.agent-role {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 .status-pill {
+  --tone: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 24px;
-  padding: 6px 16px;
+  padding: 6px 14px;
   border-radius: 999px;
   background: var(--surface);
   border: 1px solid var(--surface-border);
@@ -141,6 +192,126 @@ html, body {
   font-weight: 600;
   letter-spacing: 0.02em;
   backdrop-filter: blur(12px);
+}
+
+.status-pill[data-tone="connecting"] { --tone: #f59e0b; }
+.status-pill[data-tone="listening"] { --tone: #22c55e; }
+.status-pill[data-tone="speaking"] { --tone: #2bd2ff; }
+.status-pill[data-tone="muted"] { --tone: var(--danger); }
+.status-pill[data-tone="error"] { --tone: var(--danger); }
+.status-pill[data-tone="ended"] { --tone: var(--text-muted); }
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tone);
+}
+
+.status-pill[data-tone="connecting"] .status-dot,
+.status-pill[data-tone="listening"] .status-dot,
+.status-pill[data-tone="speaking"] .status-dot {
+  animation: status-pulse 1.8s ease-out infinite;
+}
+
+@keyframes status-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--tone) 55%, transparent); }
+  100% { box-shadow: 0 0 0 8px transparent; }
+}
+
+.status-text {
+  color: var(--text);
+}
+
+.status-dots {
+  display: none;
+  gap: 3px;
+  margin-left: -2px;
+}
+
+.status-pill[data-animate="true"] .status-dots {
+  display: inline-flex;
+}
+
+.status-dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: status-dot-bounce 1.2s ease-in-out infinite;
+}
+
+.status-dots i:nth-child(2) { animation-delay: 0.15s; }
+.status-dots i:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes status-dot-bounce {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-2px); }
+}
+
+.status-timer {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.status-timer:not(:empty)::before {
+  content: "\00b7";
+  margin-right: 8px;
+  opacity: 0.6;
+}
+
+.caption {
+  min-height: 4.6em;
+  max-width: min(440px, 88vw);
+  margin: 22px 16px 0;
+  text-align: center;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.caption-role {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.caption-role:empty {
+  display: none;
+}
+
+.caption-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.caption[data-empty="true"] {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.caption--in {
+  animation: caption-in 0.35s ease-out;
+}
+
+@keyframes caption-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-dot,
+  .status-dots i,
+  .caption--in {
+    animation: none !important;
+  }
 }
 
 .orb-wrap {
@@ -227,7 +398,7 @@ html, body {
 
 @keyframes orb-smoke-hue-drift {
   0%, 100% { filter: saturate(1) brightness(1); }
-  50% { filter: saturate(1.35) brightness(1.05); }
+  50% { filter: saturate(1.15) brightness(1.03); }
 }
 
 /* A tight, low-blur glassy highlight (like a specular glint on a sphere)
@@ -304,15 +475,49 @@ html, body {
   border: none;
   background: transparent;
   color: var(--text);
-  font-size: 18px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
+  transition: background 0.15s ease, transform 0.15s ease, filter 0.15s ease;
+}
+
+.control-btn svg {
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+
+.control-btn:hover:not(.end-call):not(.start-call) {
+  background: var(--surface-border);
+}
+
+.control-btn:active {
+  transform: scale(0.95);
+}
+
+.control-btn:focus-visible,
+.theme-toggle:focus-visible {
+  outline: 2px solid #2bd2ff;
+  outline-offset: 2px;
+}
+
+.control-btn--labeled {
+  width: auto;
+  padding: 0 18px 0 14px;
 }
 
 .control-btn[data-active="true"] {
   background: var(--surface-border);
+}
+
+#muteBtn[data-active="true"] {
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+  color: var(--danger);
 }
 
 .control-btn.end-call {
@@ -326,11 +531,15 @@ html, body {
 
 .control-btn.start-call {
   width: auto;
-  padding: 0 24px;
-  border-radius: 999px;
-  background: var(--danger);
-  color: white;
-  font-weight: 600;
+  padding: 0 26px 0 22px;
+  background: linear-gradient(135deg, #fa8bff 0%, #2bd2ff 55%, #2bff88 100%);
+  color: #0b0d12;
+  box-shadow: 0 6px 20px var(--orb-glow);
+}
+
+.control-btn.start-call:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
 }
 
 .drawer {
@@ -343,9 +552,12 @@ html, body {
   background: var(--surface);
   border-left: 1px solid var(--surface-border);
   backdrop-filter: blur(20px);
-  box-shadow: var(--shadow);
+  box-shadow: none;
   transform: translateX(100%);
-  transition: transform 0.25s ease;
+  /* Closed drawer is fully hidden (no shadow bleeding onto the page edge,
+     not reachable by Tab) - visibility flips after the slide-out finishes. */
+  visibility: hidden;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, visibility 0s linear 0.25s;
   display: flex;
   flex-direction: column;
   padding: 20px;
@@ -354,6 +566,9 @@ html, body {
 
 .drawer[data-open="true"] {
   transform: translateX(0);
+  box-shadow: var(--shadow);
+  visibility: visible;
+  transition-delay: 0s;
 }
 
 .transcript-message {
