@@ -200,17 +200,27 @@ html, body {
 .status-pill[data-tone="error"] { --tone: var(--danger); }
 .status-pill[data-tone="ended"] { --tone: var(--text-muted); }
 
+/* During a live call the pill keeps one width, so swapping between
+   "Listening ...", "Speaking" and "Muted" doesn't resize/shift it. */
+.status-pill[data-tone="listening"],
+.status-pill[data-tone="speaking"],
+.status-pill[data-tone="muted"] {
+  min-width: 184px;
+  justify-content: center;
+}
+
 .status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: var(--tone);
+  transition: background-color 0.4s ease;
 }
 
 .status-pill[data-tone="connecting"] .status-dot,
 .status-pill[data-tone="listening"] .status-dot,
 .status-pill[data-tone="speaking"] .status-dot {
-  animation: status-pulse 1.8s ease-out infinite;
+  animation: status-pulse 2.6s ease-out infinite;
 }
 
 @keyframes status-pulse {
@@ -237,11 +247,11 @@ html, body {
   height: 4px;
   border-radius: 50%;
   background: currentColor;
-  animation: status-dot-bounce 1.2s ease-in-out infinite;
+  animation: status-dot-bounce 1.8s ease-in-out infinite;
 }
 
-.status-dots i:nth-child(2) { animation-delay: 0.15s; }
-.status-dots i:nth-child(3) { animation-delay: 0.3s; }
+.status-dots i:nth-child(2) { animation-delay: 0.22s; }
+.status-dots i:nth-child(3) { animation-delay: 0.44s; }
 
 @keyframes status-dot-bounce {
   0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }

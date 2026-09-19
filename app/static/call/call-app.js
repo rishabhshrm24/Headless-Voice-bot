@@ -14,6 +14,10 @@ const ICONS = {
   moon: `${SVG_OPEN}<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>`,
 };
 
+// How long the bot's audio must stay quiet before we leave the "Speaking"
+// state - long enough to bridge natural pauses between words/sentences.
+const SPEAK_HOLD_MS = 900;
+
 function formatDuration(totalSeconds) {
   const s = Math.max(0, Math.floor(totalSeconds));
   const h = Math.floor(s / 3600);
@@ -103,6 +107,7 @@ class CallApp {
     this.timerId = null;
     this.callStartedAt = 0;
     this.speaking = false;
+    this._lastSpokeAt = -Infinity;
 
     this._renderIdleControls();
     this._bindDrawerControls();
@@ -258,6 +263,7 @@ class CallApp {
     this.state = "connecting";
     this._clearTimer();
     this.speaking = false;
+    this._lastSpokeAt = -Infinity;
     this.muted = false;
     this._setStatus("Connecting", "connecting", true);
     this._setCaption("Getting things ready…");
@@ -349,9 +355,17 @@ class CallApp {
         this.orb.setLevel(0);
         return;
       }
-      if (level > 0.02) {
+      // Playback level drops to 0 in the tiny gaps between chunks of speech,
+      // which used to flip the pill/orb between "Speaking" and "Listening"
+      // several times a second. Enter "speaking" immediately, but only leave
+      // it after SPEAK_HOLD_MS of continuous quiet.
+      const now = performance.now();
+      if (level > 0.02) this._lastSpokeAt = now;
+      const stillSpeaking = now - this._lastSpokeAt < SPEAK_HOLD_MS;
+
+      if (stillSpeaking) {
         this.orb.setState("speaking");
-        this.orb.setLevel(level);
+        if (level > 0.02) this.orb.setLevel(level);
         if (!this.speaking) {
           this.speaking = true;
           this._setStatus("Speaking", "speaking");
