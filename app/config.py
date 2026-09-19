@@ -34,3 +34,10 @@ PORT = int(_get("PORT", "8000"))
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOCS_DIR = os.path.join(BASE_DIR, "data", "docs")
 INDEX_PATH = os.path.join(BASE_DIR, "storage", "index.npz")
+
+# --- Access control (fails closed: unset means nobody gets in) ---
+ACCESS_CODES = [c.strip() for c in _get("ACCESS_CODES").split(",") if c.strip()]
+ADMIN_KEY = _get("ADMIN_KEY")
+ALLOWED_ORIGINS = [o.strip() for o in _get("ALLOWED_ORIGINS").split(",") if o.strip()]
+MAX_CALL_SECONDS = int(_get("MAX_CALL_SECONDS", "300"))
+DAILY_CALL_SECONDS = int(_get("DAILY_CALL_SECONDS", "900"))

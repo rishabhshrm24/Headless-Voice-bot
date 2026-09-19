@@ -6,9 +6,9 @@ from app.main import app
 from app.session_tracker import tracker
 
 
-def test_feedback_records_event_on_existing_session():
+def test_feedback_records_event_on_existing_session(caller_client):
     session = tracker.create_session(session_type="websocket_voice", summary="test call")
-    client = TestClient(app)
+    client = caller_client
 
     resp = client.post("/feedback", json={
         "session_id": session.id,
@@ -29,9 +29,9 @@ def test_feedback_records_event_on_existing_session():
     }
 
 
-def test_feedback_comment_is_optional():
+def test_feedback_comment_is_optional(caller_client):
     session = tracker.create_session(session_type="websocket_voice", summary="test call 2")
-    client = TestClient(app)
+    client = caller_client
 
     resp = client.post("/feedback", json={
         "session_id": session.id,
@@ -45,8 +45,8 @@ def test_feedback_comment_is_optional():
     assert feedback_events[0]["details"]["comment"] is None
 
 
-def test_feedback_404s_for_unknown_session():
-    client = TestClient(app)
+def test_feedback_404s_for_unknown_session(caller_client):
+    client = caller_client
 
     resp = client.post("/feedback", json={
         "session_id": "does-not-exist",
@@ -57,9 +57,9 @@ def test_feedback_404s_for_unknown_session():
     assert resp.status_code == 404
 
 
-def test_feedback_rejects_rating_out_of_range():
+def test_feedback_rejects_rating_out_of_range(caller_client):
     session = tracker.create_session(session_type="websocket_voice", summary="test call 3")
-    client = TestClient(app)
+    client = caller_client
 
     too_low = client.post("/feedback", json={
         "session_id": session.id,
@@ -76,14 +76,14 @@ def test_feedback_rejects_rating_out_of_range():
     assert too_high.status_code == 422
 
 
-def test_feedback_after_session_end_does_not_change_duration():
+def test_feedback_after_session_end_does_not_change_duration(caller_client):
     session = tracker.create_session(session_type="websocket_voice", summary="test call 4")
     time.sleep(0.05)
     tracker.end_session(session.id, status="completed")
     ended_duration = tracker.get_session(session.id).duration_seconds
 
     time.sleep(0.05)
-    client = TestClient(app)
+    client = caller_client
     resp = client.post("/feedback", json={
         "session_id": session.id,
         "rating": 5,

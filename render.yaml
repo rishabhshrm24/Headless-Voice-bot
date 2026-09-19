@@ -7,6 +7,14 @@ services:
     envVars:
       - key: OPENAI_API_KEY
         sync: false
+      - key: ADMIN_KEY
+        sync: false
+      - key: ACCESS_CODES
+        sync: false
+      - key: MAX_CALL_SECONDS
+        value: "300"
+      - key: DAILY_CALL_SECONDS
+        value: "900"
       - key: CHAT_MODEL
         value: gpt-4o-mini
       - key: EMBED_MODEL

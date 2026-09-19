@@ -3,8 +3,8 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 
-def test_call_route_serves_html():
-    client = TestClient(app)
+def test_call_route_serves_html(caller_client):
+    client = caller_client
 
     resp = client.get("/call")
 

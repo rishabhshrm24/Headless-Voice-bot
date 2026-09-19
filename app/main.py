@@ -1,14 +1,15 @@
+import asyncio
 import logging
 import os
+import time
 from typing import Optional
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, WebSocket, Request, Query
+from fastapi import Depends, FastAPI, UploadFile, File, HTTPException, WebSocket, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
-from app import config
+from app import auth, config
 from app.rag_store import build_index, load_index, RagIndex
 from app.llm import (
     answer_query_async,
@@ -22,21 +23,29 @@ from app.session_tracker import tracker
 
 logging.basicConfig(level=logging.INFO)
 
-app = FastAPI(title="Headless Voicebot POC", version="0.1.0")
+# Interactive API docs would advertise every endpoint to anyone who finds the URL.
+app = FastAPI(title="Headless Voicebot POC", version="0.1.0", docs_url=None, redoc_url=None, openapi_url=None)
 
-# Enable CORS for remote web monitoring dashboards
+# Same-origin needs no CORS; only origins listed in ALLOWED_ORIGINS may call cross-site.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=config.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Mount static files directory
+
+@app.middleware("http")
+async def _no_indexing(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Robots-Tag"] = "noindex, nofollow, noimageindex, noarchive"
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
-if os.path.exists(STATIC_DIR):
-    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+ADMIN = [Depends(auth.require_admin)]
 
 _index: RagIndex = load_index()
 
@@ -85,10 +94,96 @@ class OpenAIChatCompletionsRequest(BaseModel):
 # UI & Dashboard Endpoints
 # ==========================================
 
+_LOGIN_HTML = """<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noimageindex"><title>Sign in</title>
+<style>
+body{margin:0;min-height:100vh;display:grid;place-items:center;font-family:system-ui,sans-serif;background:#0f1115;color:#e8eaed}
+form{width:min(320px,86vw);display:grid;gap:12px}
+input,button{font:inherit;padding:12px 14px;border-radius:10px;border:1px solid #333944;background:#181b22;color:inherit}
+button{background:#3b6cf6;border-color:#3b6cf6;cursor:pointer;font-weight:600}
+p{margin:0;min-height:1.2em;color:#f28b82;font-size:14px}
+</style></head><body>
+<form id="f"><input id="c" type="password" placeholder="Access code" autocomplete="off" autofocus required>
+<button>Continue</button><p id="e"></p></form>
+<script>
+document.getElementById("f").onsubmit=async(ev)=>{ev.preventDefault();
+const r=await fetch("/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:document.getElementById("c").value})});
+if(r.ok){const d=await r.json();location.href=d.next}else{document.getElementById("e").textContent="Invalid code"}};
+</script></body></html>"""
+
+_failed_logins: dict[str, list[float]] = {}
+
+
+def _login_throttled(host: str) -> bool:
+    now = time.monotonic()
+    recent = [t for t in _failed_logins.get(host, []) if now - t < 300]
+    _failed_logins[host] = recent
+    return len(recent) >= 10
+
+
+class LoginRequest(BaseModel):
+    code: str = Field(max_length=200)
+
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page():
+    return HTMLResponse(_LOGIN_HTML)
+
+
+@app.post("/login")
+async def login(req: LoginRequest, request: Request):
+    """Exchange an invite code (or the admin key) for a session cookie."""
+    host = request.client.host if request.client else "unknown"
+    if _login_throttled(host):
+        raise HTTPException(status_code=429, detail="Too many attempts, try again later")
+    secure = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+
+    if auth.is_admin_key(req.code):
+        kind, secret, nxt = "admin", req.code, "/dashboard"
+    else:
+        secret = auth.match_code(req.code)
+        if secret is None:
+            _failed_logins.setdefault(host, []).append(time.monotonic())
+            raise HTTPException(status_code=401, detail="Invalid code")
+        kind, nxt = "access", "/call"
+
+    resp = JSONResponse({"status": "ok", "next": nxt})
+    name, value = auth.cookie_for(kind, secret)
+    resp.set_cookie(name, value, httponly=True, samesite="strict", secure=secure, max_age=60 * 60 * 24 * 30)
+    return resp
+
+
+@app.post("/logout")
+async def logout():
+    resp = JSONResponse({"status": "ok"})
+    resp.delete_cookie(auth.ACCESS_COOKIE)
+    resp.delete_cookie(auth.ADMIN_COOKIE)
+    return resp
+
+
+@app.get("/robots.txt", response_class=PlainTextResponse)
+async def robots():
+    return "User-agent: *\nDisallow: /\n"
+
+
+@app.get("/static/{path:path}")
+async def static_files(path: str, request: Request):
+    """Front-end assets (incl. the logo/orb) are only served to signed-in visitors."""
+    auth.require_caller(request)
+    root = os.path.realpath(STATIC_DIR)
+    full = os.path.realpath(os.path.join(root, path))
+    if not full.startswith(root + os.sep) or not os.path.isfile(full):
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(full)
+
+
 @app.get("/", response_class=HTMLResponse)
 @app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard():
+async def dashboard(request: Request):
     """Serves the Session Activity & Agent Monitoring Web UI."""
+    if not auth.is_admin(request):
+        return RedirectResponse("/login")
     index_html = os.path.join(STATIC_DIR, "index.html")
     if os.path.exists(index_html):
         return FileResponse(index_html)
@@ -96,8 +191,10 @@ async def dashboard():
 
 
 @app.get("/call", response_class=HTMLResponse)
-async def call_ui():
+async def call_ui(request: Request):
     """Serves the end-user voice call page."""
+    if auth.caller_code(request) is None:
+        return RedirectResponse("/login")
     call_html = os.path.join(STATIC_DIR, "call.html")
     if os.path.exists(call_html):
         return FileResponse(call_html)
@@ -108,7 +205,7 @@ async def call_ui():
 # Session Monitoring REST & WebSocket APIs
 # ==========================================
 
-@app.get("/api/sessions")
+@app.get("/api/sessions", dependencies=ADMIN)
 def list_sessions(
     limit: int = Query(50, ge=1, le=200),
     type: Optional[str] = Query(None),
@@ -124,7 +221,7 @@ def list_sessions(
     )
 
 
-@app.get("/api/sessions/{session_id}", responses={404: {"description": "Session not found"}})
+@app.get("/api/sessions/{session_id}", dependencies=ADMIN, responses={404: {"description": "Session not found"}})
 def get_session_detail(session_id: str):
     """Retrieve complete event timeline and details for a single session."""
     session = tracker.get_session(session_id)
@@ -133,14 +230,14 @@ def get_session_detail(session_id: str):
     return session.to_dict(include_events=True)
 
 
-@app.post("/api/sessions/clear")
+@app.post("/api/sessions/clear", dependencies=ADMIN)
 def clear_sessions():
     """Clear all session tracking history."""
     tracker.clear()
     return {"status": "ok", "message": "Session history cleared"}
 
 
-@app.post("/api/sessions/{session_id}/end", responses={404: {"description": "No active live session found"}})
+@app.post("/api/sessions/{session_id}/end", dependencies=ADMIN, responses={404: {"description": "No active live session found"}})
 async def end_session(session_id: str):
     """Force-close an active live voice WebSocket session from the dashboard."""
     closed = await tracker.close_session(session_id)
@@ -149,7 +246,7 @@ async def end_session(session_id: str):
     return {"status": "ok", "message": f"Session {session_id} ended"}
 
 
-@app.get("/api/stats")
+@app.get("/api/stats", dependencies=ADMIN)
 def get_stats():
     """Retrieve aggregated agent activity metrics & knowledge base status."""
     stats = tracker.get_stats()
@@ -157,7 +254,7 @@ def get_stats():
     return stats
 
 
-@app.get("/api/knowledge-base")
+@app.get("/api/knowledge-base", dependencies=ADMIN)
 def get_knowledge_base_info():
     """Get information about knowledge base files and indexed chunks."""
     docs = []
@@ -180,7 +277,7 @@ def get_knowledge_base_info():
 # Feedback
 # ==========================================
 
-@app.post("/feedback", responses={404: {"description": "Session not found"}})
+@app.post("/feedback", dependencies=[Depends(auth.require_caller)], responses={404: {"description": "Session not found"}})
 async def submit_feedback(req: FeedbackRequest):
     """Record end-of-call rating/feedback against the originating voice session."""
     session = tracker.get_session(req.session_id)
@@ -198,6 +295,9 @@ async def submit_feedback(req: FeedbackRequest):
 @app.websocket("/ws/monitor")
 async def ws_monitor(websocket: WebSocket):
     """WebSocket endpoint for real-time live monitoring feed in the web UI."""
+    if not (auth.is_admin(websocket) and auth.origin_ok(websocket)):
+        await websocket.close(code=4401)
+        return
     await tracker.register_monitor(websocket)
 
 
@@ -207,10 +307,10 @@ async def ws_monitor(websocket: WebSocket):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "index_chunks": 0 if _index.is_empty else len(_index.texts)}
+    return {"status": "ok"}
 
 
-@app.post("/ingest")
+@app.post("/ingest", dependencies=ADMIN)
 def ingest():
     """Rebuild the RAG index from files in data/docs."""
     global _index
@@ -219,7 +319,7 @@ def ingest():
     return stats
 
 
-@app.post("/chat", responses={400: {"description": "question must not be empty"}})
+@app.post("/chat", dependencies=ADMIN, responses={400: {"description": "question must not be empty"}})
 async def chat(req: ChatRequest, request: Request):
     if not req.question.strip():
         raise HTTPException(status_code=400, detail="question must not be empty")
@@ -269,7 +369,7 @@ async def chat(req: ChatRequest, request: Request):
         raise
 
 
-@app.post("/chat/batch", responses={400: {"description": "questions must not be empty"}})
+@app.post("/chat/batch", dependencies=ADMIN, responses={400: {"description": "questions must not be empty"}})
 async def chat_batch(req: BatchChatRequest, request: Request):
     """Run the same/varied questions in one call. Use this from external test tools."""
     if not req.questions:
@@ -310,7 +410,7 @@ async def chat_batch(req: BatchChatRequest, request: Request):
         raise
 
 
-@app.post("/v1/chat/completions", responses={400: {"description": "no user message found in messages"}})
+@app.post("/v1/chat/completions", dependencies=ADMIN, responses={400: {"description": "no user message found in messages"}})
 async def openai_chat_completions(req: OpenAIChatCompletionsRequest, request: Request):
     """OpenAI-compatible endpoint for tools that speak the standard chat-completions format."""
     user_messages = [m.content for m in req.messages if m.role == "user"]
@@ -368,7 +468,7 @@ async def openai_chat_completions(req: OpenAIChatCompletionsRequest, request: Re
         raise
 
 
-@app.post("/voice/query", responses={400: {"description": "could not transcribe audio"}})
+@app.post("/voice/query", dependencies=ADMIN, responses={400: {"description": "could not transcribe audio"}})
 async def voice_query(file: UploadFile = File(...), request: Request = None):
     """Upload an audio file (wav/mp3/m4a). Returns transcript, RAG answer, and spoken reply (base64 mp3)."""
     client_host = request.client.host if request and request.client else "127.0.0.1"
@@ -445,7 +545,28 @@ async def voice_query(file: UploadFile = File(...), request: Request = None):
 async def ws_voice(websocket: WebSocket):
     """Realtime (live) voice bridge: client streams PCM16 audio events, model replies with
     streamed audio + can call `search_knowledge_base` for RAG."""
-    await run_voice_bridge(websocket, _index)
+    code = auth.caller_code(websocket)
+    if code is None or not auth.origin_ok(websocket):
+        await websocket.close(code=4401)
+        return
+    busy = auth.try_begin_call(code)
+    if busy:
+        await websocket.close(code=4429, reason=busy)
+        return
+
+    started = time.monotonic()
+
+    async def _cut_off():
+        # The bridge stops as soon as the client socket closes.
+        await asyncio.sleep(auth.max_seconds_for(code))
+        await websocket.close(code=4408, reason="Call time limit reached")
+
+    limiter = asyncio.create_task(_cut_off())
+    try:
+        await run_voice_bridge(websocket, _index)
+    finally:
+        limiter.cancel()
+        auth.end_call(code, started)
 
 
 if __name__ == "__main__":
