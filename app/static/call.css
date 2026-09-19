@@ -155,6 +155,11 @@ html, body {
 .orb-wrap svg {
   width: 100%;
   height: 100%;
+  /* Inline <svg> clips to its own box by default; the animated inner
+     shapes touch that boundary and left hard 1px straight lines along the
+     box edges around the orb (visible on dark). Everything is already
+     clipped to the orb's circle by the mask, so nothing extra shows. */
+  overflow: visible;
   filter: drop-shadow(0 0 calc(20px + 60px * var(--orb-level)) var(--orb-glow));
   transform: scale(calc(1 + 0.12 * var(--orb-level)));
   transition: transform 0.05s linear, filter 0.2s ease;
