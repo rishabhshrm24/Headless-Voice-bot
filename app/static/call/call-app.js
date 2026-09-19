@@ -177,6 +177,7 @@ class CallApp {
 
   _renderActiveControls() {
     this.controlPill.innerHTML = "";
+    this.controlPill.classList.remove("control-pill--idle");
 
     const muteBtn = this._makeButton({
       className: "control-btn control-btn--labeled",
@@ -204,9 +205,10 @@ class CallApp {
 
   _renderIdleControls() {
     this.controlPill.innerHTML = "";
+    this.controlPill.classList.add("control-pill--idle");
     const btn = this._makeButton({
       className: "control-btn start-call",
-      icon: ICONS.phone,
+      icon: `<span class="btn-icon">${ICONS.phone}</span>`,
       label: "Start call",
       text: "Start call",
       id: "startCallBtn",
