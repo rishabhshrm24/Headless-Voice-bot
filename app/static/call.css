@@ -588,52 +588,34 @@ html, body {
   backdrop-filter: none;
 }
 
-/* B2B-style primary action: solid, high-contrast (ink on light, inverted on
-   dark), squared-off radius, quiet layered shadow, a small brand-gradient
-   icon chip as the only color accent. */
+/* Primary action, modeled on how Delphi / Hume / Pi / PlayAI style theirs
+   (checked on Mobbin): a fully rounded pill in one solid color, text with at
+   most a small inline icon, no gradient tile, quiet 1px shadow. Ink on the
+   light theme, inverted on dark. */
 .control-btn.start-call {
   width: auto;
-  height: 52px;
-  padding: 0 24px 0 10px;
-  gap: 12px;
-  border-radius: 14px;
+  height: 48px;
+  padding: 0 28px;
+  gap: 10px;
+  border-radius: 999px;
   background: var(--btn-primary-bg);
   color: var(--btn-primary-fg);
   font-size: 15px;
   font-weight: 600;
-  letter-spacing: 0.005em;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.16) inset,
-    0 1px 2px rgba(15, 23, 42, 0.28),
-    0 12px 28px -10px rgba(15, 23, 42, 0.45);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
 }
 
-.control-btn.start-call .btn-icon {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #fa8bff 0%, #2bd2ff 55%, #2bff88 100%);
-  color: #0b0d12;
-}
-
-.control-btn.start-call .btn-icon svg {
-  width: 17px;
-  height: 17px;
+.control-btn.start-call svg {
+  width: 18px;
+  height: 18px;
 }
 
 .control-btn.start-call:hover {
   background: var(--btn-primary-bg-hover);
-  transform: translateY(-1px);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.16) inset,
-    0 2px 4px rgba(15, 23, 42, 0.28),
-    0 16px 32px -10px rgba(15, 23, 42, 0.5);
 }
 
 .control-btn.start-call:active {
-  transform: translateY(0) scale(0.985);
+  transform: scale(0.98);
 }
 
 .drawer {

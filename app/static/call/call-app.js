@@ -208,7 +208,7 @@ class CallApp {
     this.controlPill.classList.add("control-pill--idle");
     const btn = this._makeButton({
       className: "control-btn start-call",
-      icon: `<span class="btn-icon">${ICONS.phone}</span>`,
+      icon: ICONS.phone,
       label: "Start call",
       text: "Start call",
       id: "startCallBtn",
