@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Voicebot Evaluations</title>
+  <link rel="stylesheet" href="/static/evals.css">
+</head>
+<body>
+  <header class="topbar">
+    <span class="brand">Voicebot</span>
+    <nav class="tabs" aria-label="Sections">
+      <a class="tab" href="/dashboard">Sessions</a>
+      <a class="tab" href="/evals" aria-current="page">Evaluations</a>
+    </nav>
+    <span class="spacer"></span>
+    <button class="btn small" id="logout" type="button">Sign out</button>
+  </header>
+
+  <main class="page">
+    <div class="page-head">
+      <div>
+        <h1>Evaluations</h1>
+        <p class="sub">How the assistant is performing, and which calls need a human look.</p>
+      </div>
+      <div class="actions">
+        <button class="btn" id="refresh" type="button">Refresh</button>
+        <button class="btn primary" id="judgeAll" type="button">Evaluate unscored</button>
+      </div>
+    </div>
+
+    <section class="kpis" id="kpis" aria-label="Summary"></section>
+
+    <section class="panels">
+      <div class="card panel">
+        <h2>Quality by criterion</h2>
+        <div id="criteria"></div>
+      </div>
+      <div class="card panel">
+        <h2>Response time, recent sessions</h2>
+        <div id="latency"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="toolbar">
+        <input class="field" id="search" type="search" placeholder="Search by question, reply or session id" aria-label="Search sessions">
+        <select class="field" id="filter" aria-label="Filter sessions">
+          <option value="all">All sessions</option>
+          <option value="attention">Needs attention</option>
+          <option value="unjudged">Not yet scored</option>
+          <option value="fail">Failed</option>
+          <option value="pass">Passed</option>
+          <option value="unreviewed">Not yet reviewed</option>
+        </select>
+      </div>
+      <div class="table-wrap" id="tableWrap"></div>
+    </section>
+  </main>
+
+  <div class="scrim" id="scrim"></div>
+  <aside class="drawer" id="drawer" aria-label="Session detail" aria-hidden="true"></aside>
+
+  <script src="/static/evals.js"></script>
+</body>
+</html>

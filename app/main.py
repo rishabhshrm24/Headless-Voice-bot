@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
-from app import auth, config
+from app import auth, config, evals
 from app.rag_store import build_index, load_index, RagIndex
 from app.llm import (
     answer_query_async,
@@ -252,6 +252,82 @@ def get_stats():
     stats = tracker.get_stats()
     stats["rag_index_chunks"] = 0 if _index.is_empty else len(_index.texts)
     return stats
+
+
+# ==========================================
+# Evaluations
+# ==========================================
+
+class ReviewRequest(BaseModel):
+    verdict: str = Field(pattern="^(good|bad)$")
+    note: Optional[str] = Field(default=None, max_length=2000)
+
+
+def _eval_rows() -> list[dict]:
+    """Live sessions (fresh metrics) merged with stored evaluations of sessions since evicted."""
+    stored = evals.store.all()
+    rows, seen = [], set()
+    for sess in tracker.all_sessions():
+        snap = evals.snapshot_of(sess.to_dict(include_events=True))
+        rows.append(evals.row_of(snap, stored.get(sess.id, {})))
+        seen.add(sess.id)
+    for sid, rec in stored.items():
+        if sid not in seen and rec.get("snapshot"):
+            rows.append(evals.row_of(rec["snapshot"], rec))
+    rows.sort(key=lambda r: r.get("started_at") or 0, reverse=True)
+    return rows
+
+
+def _eval_snapshot(session_id: str) -> dict:
+    session = tracker.get_session(session_id)
+    if session:
+        return evals.snapshot_of(session.to_dict(include_events=True))
+    rec = evals.store.get(session_id)
+    if rec.get("snapshot"):
+        return rec["snapshot"]
+    raise HTTPException(status_code=404, detail="Session not found")
+
+
+@app.get("/evals", response_class=HTMLResponse)
+async def evals_page(request: Request):
+    """Serves the evaluation dashboard."""
+    if not auth.is_admin(request):
+        return RedirectResponse("/login")
+    return FileResponse(os.path.join(STATIC_DIR, "evals.html"))
+
+
+@app.get("/api/evals", dependencies=ADMIN)
+def list_evals(limit: int = Query(200, ge=1, le=500)):
+    rows = _eval_rows()
+    return {"summary": evals.summarize(rows), "sessions": rows[:limit]}
+
+
+@app.get("/api/evals/{session_id}", dependencies=ADMIN, responses={404: {"description": "Session not found"}})
+def get_eval(session_id: str):
+    snap = _eval_snapshot(session_id)
+    return {**evals.row_of(snap, evals.store.get(session_id)), "turns": snap["turns"]}
+
+
+@app.post("/api/evals/{session_id}/judge", dependencies=ADMIN, responses={404: {"description": "Session not found"}, 400: {"description": "Nothing to judge"}, 502: {"description": "Judge failed"}})
+async def judge_eval(session_id: str):
+    snap = _eval_snapshot(session_id)
+    if not any(t["user"] and t["assistant"] for t in snap["turns"]):
+        raise HTTPException(status_code=400, detail="Session has no completed turns to judge")
+    try:
+        result = await asyncio.to_thread(evals.judge_turns, snap["turns"])
+    except Exception as e:
+        logging.exception("Judge failed: %s", e)
+        raise HTTPException(status_code=502, detail=evals.judge_error_reason(e))
+    await asyncio.to_thread(evals.store.set_judge, session_id, snap, result)
+    return result
+
+
+@app.put("/api/evals/{session_id}/review", dependencies=ADMIN, responses={404: {"description": "Session not found"}})
+def review_eval(session_id: str, req: ReviewRequest):
+    snap = _eval_snapshot(session_id)
+    review = {"verdict": req.verdict, "note": req.note, "reviewed_at": time.time()}
+    evals.store.set_review(session_id, snap, review)
+    return review
 
 
 @app.get("/api/knowledge-base", dependencies=ADMIN)

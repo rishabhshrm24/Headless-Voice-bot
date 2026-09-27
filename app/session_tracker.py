@@ -237,6 +237,10 @@ class SessionTracker:
     def get_session(self, session_id: str) -> Optional[Session]:
         return self._sessions.get(session_id)
 
+    def all_sessions(self) -> List[Session]:
+        """Every tracked session, newest first."""
+        return [self._sessions[sid] for sid in reversed(self._session_order) if sid in self._sessions]
+
     def _matches_filters(
         self,
         sess: Session,

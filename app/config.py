@@ -23,6 +23,7 @@ REALTIME_MODEL = _get("REALTIME_MODEL", "gpt-realtime")
 TTS_MODEL = _get("TTS_MODEL", "tts-1")
 TTS_VOICE = _get("TTS_VOICE", "alloy")
 STT_MODEL = _get("STT_MODEL", "whisper-1")
+JUDGE_MODEL = _get("JUDGE_MODEL", "gpt-4o")
 
 TOP_K = int(_get("TOP_K", "4"))
 CHUNK_SIZE = int(_get("CHUNK_SIZE", "800"))
@@ -34,6 +35,7 @@ PORT = int(_get("PORT", "8000"))
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOCS_DIR = os.path.join(BASE_DIR, "data", "docs")
 INDEX_PATH = os.path.join(BASE_DIR, "storage", "index.npz")
+EVALS_PATH = os.path.join(BASE_DIR, "storage", "evals.json")
 
 # --- Access control (fails closed: unset means nobody gets in) ---
 ACCESS_CODES = [c.strip() for c in _get("ACCESS_CODES").split(",") if c.strip()]
